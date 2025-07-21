@@ -1,0 +1,31 @@
+/* Estilos específicos del componente App */
+/* La mayoría de los estilos están ahora en index.css y usando Tailwind */
+
+/* Asegurar que no hay fondos extra en contenedores */
+.App {
+  background: transparent;
+}
+
+/* Efectos adicionales específicos para la app */
+@media (max-width: 768px) {
+  main {
+    padding: 1rem;
+  }
+  
+  .max-w-4xl {
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .grid-cols-1.lg\\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Eliminar cualquier fondo no deseado */
+* {
+  box-sizing: border-box;
+}
