@@ -5,86 +5,217 @@ function BarcodeCard({ onScanBarcode }) {
   const [isHovered, setIsHovered] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [hasPermission, setHasPermission] = useState(null);
+  const [showManualInput, setShowManualInput] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState('');
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
   // Inicializar QuaggaJS cuando el componente se monte
   useEffect(() => {
+    let cleanup = false;
+    
     // Verificar si QuaggaJS está disponible
     if (typeof window !== 'undefined' && !window.Quagga) {
       // Cargar QuaggaJS dinámicamente
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js';
       script.onload = () => {
-        console.log('QuaggaJS cargado exitosamente');
+        if (!cleanup) {
+          console.log('QuaggaJS cargado exitosamente');
+        }
+      };
+      script.onerror = () => {
+        console.error('Error cargando QuaggaJS');
       };
       document.head.appendChild(script);
     }
 
     return () => {
-      stopCamera();
+      cleanup = true;
+      // Usar setTimeout para dar tiempo a que terminen las operaciones pendientes
+      setTimeout(() => {
+        stopCamera();
+      }, 100);
     };
   }, []);
 
   const checkCameraPermission = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment', // Cámara trasera preferida
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
-      });
+      // Verificar si mediaDevices está disponible
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('La API de cámara no está disponible en este navegador');
+      }
+
+      // Primero intentar con cámara trasera
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 }
+          } 
+        });
+      } catch (envError) {
+        console.log('Cámara trasera no disponible, intentando con cualquier cámara:', envError);
+        // Si falla, intentar con cualquier cámara disponible
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 }
+          } 
+        });
+      }
+      
       setHasPermission(true);
+      setCameraError(null);
       stream.getTracks().forEach(track => track.stop()); // Detener el stream de prueba
       return true;
     } catch (error) {
       console.error('Error de permisos de cámara:', error);
       setHasPermission(false);
-      setCameraError('No se pudo acceder a la cámara. Por favor, permite el acceso.');
+      
+      let errorMessage = 'No se pudo acceder a la cámara. ';
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Permisos denegados. Por favor, permite el acceso a la cámara.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No se encontró ninguna cámara disponible.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage += 'La cámara está siendo usada por otra aplicación.';
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage += 'La cámara no cumple con los requisitos especificados.';
+      } else {
+        errorMessage += error.message || 'Error desconocido.';
+      }
+      
+      setCameraError(errorMessage);
       return false;
     }
   };
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
+      // Usar la misma lógica que checkCameraPermission pero sin detener el stream
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 }
+          }
+        });
+      } catch (envError) {
+        console.log('Cámara trasera no disponible, usando cámara por defecto:', envError);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 }
+          }
+        });
+      }
       
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
       }
       
+      setCameraError(null);
       return true;
     } catch (error) {
       console.error('Error al iniciar cámara:', error);
-      setCameraError('No se pudo iniciar la cámara');
+      
+      let errorMessage = 'No se pudo iniciar la cámara. ';
+      if (error.name === 'NotReadableError') {
+        errorMessage += 'La cámara está siendo usada por otra aplicación. Por favor, cierra otras aplicaciones que puedan estar usando la cámara.';
+      } else {
+        errorMessage += error.message || 'Error desconocido.';
+      }
+      
+      setCameraError(errorMessage);
       return false;
     }
   };
 
   const stopCamera = () => {
+    // Detener stream de video
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch (error) {
+          console.warn('Error stopping video track:', error);
+        }
+      });
       streamRef.current = null;
     }
+    
+    // Detener QuaggaJS de manera completamente segura
     if (window.Quagga) {
-      window.Quagga.stop();
+      try {
+        // Verificar si Quagga está inicializado antes de parar
+        if (window.Quagga.initialized) {
+          window.Quagga.stop();
+        }
+      } catch (error) {
+        console.warn('Error stopping QuaggaJS:', error);
+        
+        // Si falla el stop normal, intentar reset completo
+        try {
+          // Limpiar listeners
+          if (typeof window.Quagga.offDetected === 'function') {
+            window.Quagga.offDetected();
+          }
+          if (typeof window.Quagga.offProcessed === 'function') {
+            window.Quagga.offProcessed();
+          }
+          
+          // Limpiar propiedades internas si existen
+          if (window.Quagga.CameraAccess) {
+            window.Quagga.CameraAccess = null;
+          }
+          if (window.Quagga.InputStream) {
+            window.Quagga.InputStream = null;
+          }
+          
+          // Marcar como no inicializado
+          window.Quagga.initialized = false;
+          
+        } catch (deepError) {
+          console.warn('Error in deep QuaggaJS cleanup:', deepError);
+          
+          // Último recurso: recrear el objeto Quagga
+          try {
+            delete window.Quagga;
+          } catch (deleteError) {
+            console.warn('Could not delete Quagga object:', deleteError);
+          }
+        }
+      }
     }
   };
 
   const initializeScanner = () => {
     if (!window.Quagga) {
       console.error('QuaggaJS no está disponible');
+      setCameraError('Error: Librería de escaneo no disponible');
       return;
+    }
+
+    if (!videoRef.current) {
+      console.error('Video element no disponible');
+      setCameraError('Error: Elemento de video no disponible');
+      return;
+    }
+
+    // Limpiar detectores previos
+    try {
+      window.Quagga.offDetected();
+      window.Quagga.offProcessed();
+    } catch (cleanupError) {
+      console.warn('Error limpiando detectores previos:', cleanupError);
     }
 
     window.Quagga.init({
@@ -102,7 +233,7 @@ function BarcodeCard({ onScanBarcode }) {
         patchSize: "medium",
         halfSample: true
       },
-      numOfWorkers: 2,
+      numOfWorkers: navigator.hardwareConcurrency > 2 ? 2 : 1,
       frequency: 10,
       decoder: {
         readers: [
@@ -116,31 +247,61 @@ function BarcodeCard({ onScanBarcode }) {
           "upc_e_reader"
         ]
       },
-      locate: true
+      locate: true,
+      debug: process.env.NODE_ENV === 'development' ? {
+        showCanvas: false,
+        showPatches: false,
+        showFoundPatches: false,
+        showSkeleton: false,
+        showLabels: false,
+        showPatchLabels: false,
+        showRemainingPatchLabels: false,
+        boxFromPatches: {
+          showTransformed: false,
+          showTransformedBox: false,
+          showBB: false
+        }
+      } : false
     }, (err) => {
       if (err) {
         console.error('Error inicializando Quagga:', err);
-        setCameraError('Error al inicializar el escáner');
+        setCameraError('Error al inicializar el escáner: ' + (err.message || 'Error desconocido'));
         setIsScanning(false);
         return;
       }
       
       console.log('QuaggaJS inicializado correctamente');
-      window.Quagga.start();
       
-      // Evento de detección de código de barras
-      window.Quagga.onDetected((data) => {
-        const code = data.codeResult.code;
-        console.log('Código detectado:', code);
+      // Marcar como inicializado
+      window.Quagga.initialized = true;
+      
+      try {
+        window.Quagga.start();
         
-        // Detener el escáner
-        handleStopScanning();
-        
-        // Llamar al callback con el código detectado
-        if (onScanBarcode) {
-          onScanBarcode(code);
-        }
-      });
+        // Evento de detección de código de barras
+        window.Quagga.onDetected(async (data) => {
+          try {
+            const code = data.codeResult.code;
+            console.log('Código detectado:', code);
+            
+            // Detener el escáner
+            handleStopScanning();
+            
+            // Llamar al callback con el código detectado (ahora es async)
+            if (onScanBarcode) {
+              await onScanBarcode(code);
+            }
+          } catch (detectionError) {
+            console.error('Error procesando código detectado:', detectionError);
+            setCameraError('Error procesando código detectado');
+          }
+        });
+
+      } catch (startError) {
+        console.error('Error iniciando Quagga:', startError);
+        setCameraError('Error al iniciar el escáner');
+        setIsScanning(false);
+      }
     });
   };
 
@@ -195,16 +356,38 @@ function BarcodeCard({ onScanBarcode }) {
 
   // Función de simulación para desarrollo
   const simulateScan = () => {
-    setTimeout(() => {
+    setTimeout(async () => {
       const simulatedCodes = ['123456789012', 'PROD123', '987654321098', 'ABC123DEF456'];
       const randomCode = simulatedCodes[Math.floor(Math.random() * simulatedCodes.length)];
       
       handleStopScanning();
       
       if (onScanBarcode) {
-        onScanBarcode(randomCode);
+        await onScanBarcode(randomCode);
       }
     }, 3000);
+  };
+
+  // Manejar entrada manual de código de barras
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    if (!manualBarcode.trim()) return;
+    
+    setShowManualInput(false);
+    
+    if (onScanBarcode) {
+      await onScanBarcode(manualBarcode.trim());
+    }
+    
+    setManualBarcode('');
+  };
+
+  const toggleManualInput = () => {
+    setShowManualInput(!showManualInput);
+    setManualBarcode('');
+    if (isScanning) {
+      handleStopScanning();
+    }
   };
 
   return (
@@ -283,13 +466,48 @@ function BarcodeCard({ onScanBarcode }) {
             </div>
           )}
           
-          {/* Error de cámara */}
+          {/* Error de cámara con sugerencia de entrada manual */}
           {cameraError && (
             <div className="mb-6 p-4 bg-red-500/20 border border-red-400/30 rounded-2xl">
-              <p className="text-red-200 text-sm font-light">
+              <p className="text-red-200 text-sm font-light mb-3">
                 {cameraError}
               </p>
+              <div className="flex items-center justify-between">
+                <p className="text-red-300/80 text-xs">
+                  💡 Puedes ingresar el código manualmente
+                </p>
+                <button
+                  onClick={toggleManualInput}
+                  className="px-3 py-1 bg-red-500/30 hover:bg-red-500/40 border border-red-400/40 rounded-lg text-red-200 text-xs font-medium transition-colors"
+                >
+                  Entrada manual
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* Entrada manual de código */}
+          {showManualInput && (
+            <form onSubmit={handleManualSubmit} className="mb-6 p-4 bg-white/5 border border-white/10 rounded-2xl">
+              <h4 className="text-white/90 font-medium mb-3 text-sm">Ingresa el código manualmente</h4>
+              <div className="flex space-x-3">
+                <input
+                  type="text"
+                  value={manualBarcode}
+                  onChange={(e) => setManualBarcode(e.target.value)}
+                  placeholder="Código de barras..."
+                  className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-red-400/50 focus:bg-white/15 transition-all"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  disabled={!manualBarcode.trim()}
+                  className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 rounded-xl text-red-200 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ✓
+                </button>
+              </div>
+            </form>
           )}
           
           {/* Descripción */}
@@ -322,25 +540,27 @@ function BarcodeCard({ onScanBarcode }) {
             ))}
           </div>
           
-          {/* Botón principal MEJORADO - MÁS GRANDE Y PROMINENTE */}
-          <button 
-            onClick={handleScanClick}
-            disabled={isScanning && !cameraError}
-            className={`
-              group relative w-full overflow-hidden rounded-3xl border backdrop-blur-sm 
-              transition-all duration-300 ease-out font-semibold text-lg py-8 px-8
-              ${isScanning 
-                ? cameraError 
-                  ? "bg-red-500/30 border-red-400/50 hover:bg-red-500/40 text-red-100 hover:text-white cursor-pointer" 
-                  : "bg-red-500/20 border-red-400/40 cursor-not-allowed text-red-200"
-                : "bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-400/30 hover:from-red-500/30 hover:to-red-600/30 hover:border-red-400/50 text-red-100 hover:text-white active:scale-[0.98] hover:shadow-2xl hover:shadow-red-500/20"
-              }
-              before:absolute before:inset-0 before:bg-gradient-to-r 
-              before:from-red-400/20 before:via-red-400/10 before:to-transparent 
-              before:translate-x-[-100%] before:transition-transform before:duration-500
-              ${!isScanning || cameraError ? 'hover:before:translate-x-[100%]' : ''}
-              transform hover:scale-[1.02] transition-transform
-            `}
+          {/* Botones de acción */}
+          <div className="space-y-4">
+            {/* Botón principal de escaneo */}
+            <button 
+              onClick={handleScanClick}
+              disabled={isScanning && !cameraError}
+              className={`
+                group relative w-full overflow-hidden rounded-3xl border backdrop-blur-sm 
+                transition-all duration-300 ease-out font-semibold text-lg py-8 px-8
+                ${isScanning 
+                  ? cameraError 
+                    ? "bg-red-500/30 border-red-400/50 hover:bg-red-500/40 text-red-100 hover:text-white cursor-pointer" 
+                    : "bg-red-500/20 border-red-400/40 cursor-not-allowed text-red-200"
+                  : "bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-400/30 hover:from-red-500/30 hover:to-red-600/30 hover:border-red-400/50 text-red-100 hover:text-white active:scale-[0.98] hover:shadow-2xl hover:shadow-red-500/20"
+                }
+                before:absolute before:inset-0 before:bg-gradient-to-r 
+                before:from-red-400/20 before:via-red-400/10 before:to-transparent 
+                before:translate-x-[-100%] before:transition-transform before:duration-500
+                ${!isScanning || cameraError ? 'hover:before:translate-x-[100%]' : ''}
+                transform hover:scale-[1.02] transition-transform
+              `}
           >
             <div className="relative z-10 flex items-center justify-center space-x-4">
               {isScanning && !cameraError ? (
@@ -370,6 +590,22 @@ function BarcodeCard({ onScanBarcode }) {
               <div className="absolute inset-0 rounded-3xl bg-red-500/20 animate-pulse opacity-50"></div>
             )}
           </button>
+
+          {/* Botón de entrada manual alternativo */}
+          {!isScanning && !cameraError && (
+            <button
+              onClick={toggleManualInput}
+              className="group relative w-full overflow-hidden rounded-2xl border border-white/20 bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:border-white/30 text-white/80 hover:text-white transition-all duration-300 ease-out font-medium text-sm py-4 px-6 active:scale-[0.98]"
+            >
+              <div className="relative z-10 flex items-center justify-center space-x-3">
+                <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                </svg>
+                <span>Ingresar código manualmente</span>
+              </div>
+            </button>
+          )}
+        </div>
         </div>
 
         {/* Efectos de fondo mejorados */}

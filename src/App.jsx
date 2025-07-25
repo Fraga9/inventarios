@@ -1,101 +1,135 @@
 import { useState, useEffect } from 'react';
-import { BarcodeCard, Card, ProductCountScreen } from './components';
+import { BarcodeCard, Card, ProductCountScreen, ErrorBoundary } from './components';
+import { InventoryService } from './services/inventoryService';
 import './App.css';
 
 function App() {
   const [scannedItems, setScannedItems] = useState([]);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [scannedProduct, setScannedProduct] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({ totalProductos: 0, totalUnidades: 0, precision: 100 });
 
-  // Base de datos simulada de productos
-  const productDatabase = {
-    '123456789012': {
-      name: 'Laptop Gaming ROG Strix',
-      category: 'Electrónicos',
-      price: '$25,999.00',
-      image: 'https://cdn.thewirecutter.com/wp-content/media/2024/11/cheapgaminglaptops-2048px-7981.jpg',
-    },
-    '7898357410015': {
-      name: 'Smartphone Galaxy S24',
-      category: 'Telefonía',
-      price: '$18,999.00',
-      image: 'https://images.samsung.com/mx/smartphones/galaxy-s24-ultra/images/galaxy-s24-ultra-highlights-color-titanium-green-back-mo.jpg?imbypass=true',
-    },
-    '987654321098': {
-      name: 'Tablet iPad Pro',
-      category: 'Electrónicos',
-      price: '$22,499.00',
-      image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/ipad-pro-13-select-wifi-spacegray-202405',
-    },
-    'ABC123DEF456': {
-      name: 'Audífonos AirPods Pro',
-      category: 'Audio',
-      price: '$5,499.00',
-      image: 'https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/airpods-pro-2nd-gen-hero-select-202209',
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      const [movimientos, estadisticas] = await Promise.all([
+        InventoryService.getRecentMovements(),
+        InventoryService.getInventoryStats()
+      ]);
+      
+      // Formatear movimientos para la UI
+      const formattedItems = movimientos.map(mov => ({
+        id: mov.id_movimiento,
+        barcode: mov.productos.codigo_mrp || mov.productos.codigo_truper || 'N/A',
+        name: mov.productos.descripcion || 'Producto sin descripción',
+        category: mov.productos.marca || 'Sin marca',
+        timestamp: new Date(mov.fecha_movimiento).toLocaleString('es-MX', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        count: mov.cantidad_nueva,
+        lastCounted: new Date(mov.fecha_movimiento).toLocaleString('es-MX')
+      }));
+      
+      setScannedItems(formattedItems);
+      setStats(estadisticas);
+      setError(null);
+    } catch (error) {
+      console.error('Error cargando datos iniciales:', error);
+      setError('Error al cargar datos del inventario');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBarcodeScanning = (scannedCode) => {
-    console.log('Código escaneado:', scannedCode);
-    
-    // Buscar el producto en la base de datos
-    let productData = productDatabase[scannedCode];
-    
-    // Si no se encuentra el producto, crear uno genérico
-    if (!productData) {
-      productData = {
+  const handleBarcodeScanning = async (scannedCode) => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Código escaneado:', scannedCode);
+      
+      // Buscar el producto en la base de datos
+      const producto = await InventoryService.findProductByBarcode(scannedCode);
+      
+      // Formatear producto para la UI
+      const productData = InventoryService.formatProductForUI(producto, scannedCode);
+      
+      setScannedProduct(productData);
+      setCurrentScreen('productCount');
+      
+    } catch (error) {
+      console.error('Error al escanear código:', error);
+      setError(`Error al buscar producto: ${error.message}`);
+      
+      // En caso de error, crear producto genérico
+      const fallbackProduct = {
+        id_producto: null,
         name: `Producto ${scannedCode.slice(-6)}`,
-        category: 'General',
-        price: 'Precio no disponible',
+        category: 'No identificado',
+        barcode: scannedCode,
         image: null
       };
+      
+      setScannedProduct(fallbackProduct);
+      setCurrentScreen('productCount');
+    } finally {
+      setLoading(false);
     }
-
-    // Agregar el código de barras al producto
-    productData.barcode = scannedCode;
-    
-    setScannedProduct(productData);
-    setCurrentScreen('productCount');
-
-    // Agregar al historial de escaneos
-    const newItem = {
-      id: Date.now(),
-      barcode: scannedCode,
-      name: productData.name,
-      category: productData.category,
-      timestamp: new Date().toLocaleString('es-MX', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
-    
-    setScannedItems(prevItems => [newItem, ...prevItems].slice(0, 10)); // Mantener solo los últimos 10
   };
 
-  const handleSaveCount = (barcode, count) => {
-    console.log(`Guardando conteo para ${barcode}: ${count} unidades`);
-    
-    // Aquí podrías hacer una llamada a tu API para guardar el conteo
-    // await api.saveInventoryCount(barcode, count);
-    
-    // Mostrar confirmación
-    const productName = scannedProduct?.name || 'Producto';
-    alert(`✅ Conteo guardado exitosamente:\n\n${productName}\nCódigo: ${barcode}\nCantidad: ${count} unidades`);
-    
-    // Actualizar el item en el historial con el conteo
-    setScannedItems(prevItems => 
-      prevItems.map(item => 
-        item.barcode === barcode 
-          ? { ...item, count, lastCounted: new Date().toLocaleString('es-MX') }
-          : item
-      )
-    );
-    
-    setCurrentScreen('home');
-    setScannedProduct(null);
+  const handleSaveCount = async (barcode, count) => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log(`Guardando conteo para ${barcode}: ${count} unidades`);
+      
+      if (!scannedProduct?.id_producto) {
+        throw new Error('No se puede guardar el conteo: producto no identificado en el sistema');
+      }
+      
+      // Registrar movimiento en la base de datos
+      const result = await InventoryService.registerMovement({
+        idProducto: scannedProduct.id_producto,
+        cantidadNueva: count,
+        tipoMovimiento: 'conteo',
+        observaciones: `Conteo desde aplicación móvil - Código: ${barcode}`
+      });
+      
+      // Mostrar confirmación
+      const productName = scannedProduct?.name || 'Producto';
+      const diferencia = result.diferencia;
+      const diferenciaTxt = diferencia > 0 ? `+${diferencia}` : diferencia.toString();
+      
+      alert(`✅ Conteo guardado exitosamente:\n\n${productName}\nCódigo: ${barcode}\nCantidad anterior: ${result.cantidadAnterior}\nCantidad nueva: ${count} unidades\nDiferencia: ${diferenciaTxt}`);
+      
+      // Recargar datos para actualizar la UI
+      await loadInitialData();
+      
+      setCurrentScreen('home');
+      setScannedProduct(null);
+      
+    } catch (error) {
+      console.error('Error guardando conteo:', error);
+      setError(`Error al guardar conteo: ${error.message}`);
+      
+      // En caso de error, permitir al usuario reintentar
+      const retry = window.confirm(`Error al guardar el conteo: ${error.message}\n\n¿Deseas reintentar?`);
+      if (retry) {
+        await handleSaveCount(barcode, count);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -103,8 +137,25 @@ function App() {
     setScannedProduct(null);
   };
 
-  const getTotalProductsScanned = () => scannedItems.length;
-  const getTotalItemsCounted = () => scannedItems.reduce((total, item) => total + (item.count || 0), 0);
+  // Función de diagnóstico (comentada - disponible para debugging futuro)
+  /*
+  const testDatabaseConnection = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const diagnostics = await InventoryService.diagnoseSupabaseConnection();
+      console.log('📊 Diagnóstico completo:', diagnostics);
+      // ... resto del código de diagnóstico
+    } catch (error) {
+      console.error('❌ Error en diagnóstico:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  */
+
+  const getTotalProductsScanned = () => stats.totalProductos;
+  const getTotalItemsCounted = () => stats.totalUnidades;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -125,6 +176,42 @@ function App() {
         <div className="absolute top-0 right-1/4 w-32 h-32 bg-gradient-radial from-gray-500/10 to-transparent rounded-full -translate-y-16"></div>
         <div className="absolute bottom-0 center w-28 h-28 bg-gradient-radial from-white/5 to-transparent rounded-full translate-y-14"></div>
       </header>
+
+      {/* Error global */}
+      {error && (
+        <div className="fixed top-4 right-4 z-50 max-w-md p-4 bg-red-500/20 border border-red-400/30 rounded-2xl backdrop-blur-sm">
+          <div className="flex items-center space-x-3">
+            <div className="w-6 h-6 text-red-400">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-red-200 text-sm font-medium">{error}</p>
+            </div>
+            <button 
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-300 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Loading overlay */}
+      {loading && (
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white/10 border border-white/20 rounded-2xl p-8 flex flex-col items-center space-y-4">
+            <div className="w-12 h-12 border-3 border-red-400/30 rounded-full animate-spin">
+              <div className="w-12 h-12 border-3 border-transparent border-t-red-400 rounded-full"></div>
+            </div>
+            <p className="text-white/90 font-medium">Procesando...</p>
+          </div>
+        </div>
+      )}
 
       {/* Contenido principal con mejor espaciado */}
       <main className="flex flex-col items-center justify-center min-h-[calc(100vh-140px)] py-16 px-6">
@@ -161,7 +248,7 @@ function App() {
                 <div className="w-px h-12 bg-white/10"></div>
                 <div className="text-center">
                   <div className="text-2xl font-semibold text-green-400 mb-1">
-                    100%
+                    {stats.precision}%
                   </div>
                   <div className="text-xs text-white/50 font-light tracking-wide">
                     PRECISIÓN
@@ -174,7 +261,9 @@ function App() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 mb-16">
               {/* Card de escaneo principal */}
               <div className="xl:col-span-1 order-1 xl:order-1">
-                <BarcodeCard onScanBarcode={handleBarcodeScanning} />
+                <ErrorBoundary>
+                  <BarcodeCard onScanBarcode={handleBarcodeScanning} />
+                </ErrorBoundary>
               </div>
 
               {/* Historial de escaneos mejorado */}
