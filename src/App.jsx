@@ -1,27 +1,48 @@
 import { useState, useEffect } from 'react';
-import { BarcodeCard, Card, ProductCountScreen, ErrorBoundary } from './components';
+import { BarcodeCard, Card, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard } from './components';
 import { InventoryService } from './services/inventoryService';
+import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
 function App() {
+  const { isAuthenticated, user, profile, loading: authLoading, logout, isAdmin, sucursal } = useAuth();
   const [scannedItems, setScannedItems] = useState([]);
-  const [currentScreen, setCurrentScreen] = useState('home');
+  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'productCount', 'admin'
   const [scannedProduct, setScannedProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({ totalProductos: 0, totalUnidades: 0, precision: 100 });
+  const [showRegister, setShowRegister] = useState(false);
 
-  // Cargar datos iniciales
+  // Cargar datos iniciales cuando el usuario esté autenticado
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    if (isAuthenticated && profile) {
+      loadInitialData();
+    }
+  }, [isAuthenticated, profile]);
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
+      
+      // Para admin: cargar datos de todas las sucursales o saltar si no hay sucursales asignadas
+      if (isAdmin) {
+        // Admin users might not have initial data or could see a global view
+        setScannedItems([]);
+        setStats({ totalProductos: 0, totalUnidades: 0, precision: 100 });
+        return;
+      }
+
+      // Obtener ID de sucursal del usuario actual
+      const idSucursal = profile?.id_sucursal;
+      
+      if (!idSucursal) {
+        throw new Error('Usuario sin sucursal asignada');
+      }
+
       const [movimientos, estadisticas] = await Promise.all([
-        InventoryService.getRecentMovements(),
-        InventoryService.getInventoryStats()
+        InventoryService.getRecentMovements(10, idSucursal),
+        InventoryService.getInventoryStats(idSucursal)
       ]);
       
       // Formatear movimientos para la UI
@@ -97,11 +118,19 @@ function App() {
         throw new Error('No se puede guardar el conteo: producto no identificado en el sistema');
       }
       
+      // Obtener ID de sucursal del usuario actual
+      const idSucursal = profile?.id_sucursal;
+      if (!idSucursal) {
+        throw new Error('Usuario sin sucursal asignada');
+      }
+
       // Registrar movimiento en la base de datos
       const result = await InventoryService.registerMovement({
         idProducto: scannedProduct.id_producto,
         cantidadNueva: count,
         tipoMovimiento: 'conteo',
+        usuario: profile?.full_name || user?.email || 'Usuario',
+        idSucursal: idSucursal,
         observaciones: `Conteo desde aplicación móvil - Código: ${barcode}`
       });
       
@@ -157,17 +186,124 @@ function App() {
   const getTotalProductsScanned = () => stats.totalProductos;
   const getTotalItemsCounted = () => stats.totalUnidades;
 
+  const handleLogin = (result) => {
+    // Login is handled by AuthContext, just reset any local state
+    setError(null);
+    setCurrentScreen('home');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setScannedItems([]);
+      setScannedProduct(null);
+      setCurrentScreen('home');
+      setError(null);
+    } catch (error) {
+      console.error('Error logging out:', error);
+      setError('Error al cerrar sesión');
+    }
+  };
+
+  const handleRegisterSuccess = () => {
+    setShowRegister(false);
+    alert('Registro exitoso. Tu cuenta será revisada por un administrador. Recibirás un correo de confirmación.');
+  };
+
+  // Show loading while authentication is being initialized
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="bg-white/10 border border-white/20 rounded-2xl p-8 flex flex-col items-center space-y-4">
+          <div className="w-12 h-12 border-3 border-red-400/30 rounded-full animate-spin">
+            <div className="w-12 h-12 border-3 border-transparent border-t-red-400 rounded-full"></div>
+          </div>
+          <p className="text-white/90 font-medium">Iniciando aplicación...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth screens if not authenticated
+  if (!isAuthenticated) {
+    if (showRegister) {
+      return (
+        <Register 
+          onBack={() => setShowRegister(false)}
+          onRegisterSuccess={handleRegisterSuccess}
+        />
+      );
+    }
+    
+    return (
+      <Login 
+        onLogin={handleLogin}
+        onRegister={() => setShowRegister(true)}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header mejorado siguiendo el design system */}
       <header className="relative overflow-hidden backdrop-blur-xl border-b border-white/10 bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-white/[0.08]">
         <div className="relative z-10 py-8 px-6">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl font-light text-white/95 tracking-wide text-center">
-              <span className="font-semibold text-red-400">Promexma</span>
-              <span className="mx-4 text-white/30">|</span>
-              <span className="text-white/80 font-light">Control Interno</span>
-            </h1>
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex-1">
+              <h1 className="text-3xl font-light text-white/95 tracking-wide text-center">
+                <span className="font-semibold text-red-400">Promexma</span>
+                <span className="mx-4 text-white/30">|</span>
+                <span className="text-white/80 font-light">Control Interno</span>
+              </h1>
+            </div>
+            
+            {/* Navigation and user info */}
+            <div className="flex items-center space-x-4">
+              {/* Admin Navigation */}
+              {isAdmin && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentScreen('home')}
+                    className={`px-3 py-1 rounded-lg text-sm transition-all ${
+                      currentScreen === 'home' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    Inventario
+                  </button>
+                  <button
+                    onClick={() => setCurrentScreen('admin')}
+                    className={`px-3 py-1 rounded-lg text-sm transition-all ${
+                      currentScreen === 'admin' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    Administración
+                  </button>
+                </div>
+              )}
+              
+              <div className="text-right">
+                <p className="text-white/90 text-sm font-medium">{profile?.full_name}</p>
+                <p className="text-white/60 text-xs">
+                  {isAdmin ? 'Administrador' : sucursal?.Sucursal || 'Sin sucursal'}
+                </p>
+                {sucursal?.Región && !isAdmin && (
+                  <p className="text-white/50 text-xs">{sucursal.Región}</p>
+                )}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition-all"
+                title="Cerrar sesión"
+              >
+                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
         
@@ -215,7 +351,19 @@ function App() {
 
       {/* Contenido principal con mejor espaciado */}
       <main className="flex flex-col items-center justify-center min-h-[calc(100vh-140px)] py-16 px-6">
-        {currentScreen === 'home' ? (
+        {currentScreen === 'admin' && isAdmin ? (
+          <div className="w-full max-w-7xl">
+            <AdminDashboard />
+          </div>
+        ) : currentScreen === 'productCount' ? (
+          <div className="w-full max-w-3xl">
+            <ProductCountScreen
+              product={scannedProduct}
+              onSaveCount={handleSaveCount}
+              onBack={handleBack}
+            />
+          </div>
+        ) : (
           <div className="w-full max-w-6xl space-y-12">
             {/* Título principal mejorado */}
             <div className="text-center mb-16">
@@ -446,14 +594,6 @@ function App() {
                 </div>
               </Card>
             </div>
-          </div>
-        ) : (
-          <div className="w-full max-w-3xl">
-            <ProductCountScreen
-              product={scannedProduct}
-              onSaveCount={handleSaveCount}
-              onBack={handleBack}
-            />
           </div>
         )}
       </main>

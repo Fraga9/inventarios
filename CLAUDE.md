@@ -24,6 +24,7 @@ This is a React inventory management application for "Promexma Control Interno" 
 **Screen Management**:
 - `home`: Main dashboard with scanning interface and inventory history
 - `productCount`: Product counting screen triggered after barcode scan
+- `admin`: Admin dashboard for multi-sucursal analytics (admin users only)
 
 **Key Components**:
 
@@ -42,6 +43,18 @@ This is a React inventory management application for "Promexma Control Interno" 
    - Reusable glassmorphism card component with three variants: `default`, `primary`, `secondary`
    - Supports icons, titles, children content, and action buttons
    - Consistent styling and hover effects
+
+4. **Login/Register** (`src/components/Auth/`):
+   - Login component with email/password authentication
+   - Register component with sucursal selection
+   - Error handling and loading states
+   - Responsive glassmorphism design
+
+5. **AdminDashboard** (`src/components/Admin/AdminDashboard.jsx`):
+   - Multi-sucursal analytics and statistics
+   - User management with role updates
+   - Global inventory overview with filtering
+   - Admin-only access with role verification
 
 ### Styling System
 
@@ -66,24 +79,48 @@ This is a React inventory management application for "Promexma Control Interno" 
 3. **Product Counting**: ProductCountScreen → App.handleSaveCount → updates scanned items history
 4. **State Management**: Local state with useState, maintains last 10 scanned items
 
-### Database Integration
+### Authentication System
 
-**Supabase Configuration**:
-- Client configured in `src/config/supabase.js`
+**Supabase Authentication**:
+- Full authentication system with Supabase Auth
+- Client configured in `src/config/supabase.js` with persistent sessions
 - Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-- Default sucursal ID and user configurable in APP_CONFIG
+- Row Level Security (RLS) policies for data access control
+
+**User Management**:
+- `users` table extends `auth.users` with business logic
+- Two user roles: `sucursal` (branch users) and `admin` (administrators)
+- Branch users limited to their assigned sucursal data
+- Admins have access to all sucursales and user management
+
+**Authentication Service** (`src/services/authService.js`):
+- `signIn()`, `signUp()`, `signOut()` methods
+- `getUserProfile()`, `updateUserProfile()` for extended user data
+- `getSucursales()` for branch selection during registration
+- `getAllUsers()`, `updateUserRole()` for admin user management
+- `onAuthStateChange()` for real-time auth state updates
+
+**Authentication Context** (`src/contexts/AuthContext.jsx`):
+- React context for global auth state management
+- Provides `user`, `session`, `profile`, `isAuthenticated`, `isAdmin`, `sucursal`
+- Auto-initialization of auth state on app startup
+- Auth state persistence across browser sessions
+
+### Database Integration
 
 **Service Layer** (`src/services/inventoryService.js`):
 - `findProductByBarcode()`: Searches productos table by codigo_mrp or codigo_truper
-- `registerMovement()`: Records movement and updates inventory in a transaction
-- `getCurrentInventory()`: Gets current stock for a product/sucursal
-- `getRecentMovements()`: Fetches recent movements with product info
-- `getInventoryStats()`: Calculates inventory statistics
+- `registerMovement()`: Records movement and updates inventory in a transaction (requires user and sucursal)
+- `getCurrentInventory()`: Gets current stock for a product/sucursal (requires sucursal ID)
+- `getRecentMovements()`: Fetches recent movements with product info (requires sucursal ID)
+- `getInventoryStats()`: Calculates inventory statistics (requires sucursal ID)
+- All methods now enforce sucursal-based access control
 
 **Database Tables**:
+- `users`: Extended user profiles with sucursal assignment and roles
 - `productos`: Product catalog with MRP/Truper codes
 - `inventarios`: Current stock levels per product/sucursal
-- `movimientos`: Audit trail of all inventory changes
+- `movimientos`: Audit trail of all inventory changes (includes user tracking)
 - `sucursales`: Branch/location information
 
 **Data Flow**:
@@ -105,3 +142,19 @@ This is a React inventory management application for "Promexma Control Interno" 
 - Async/await pattern for all database operations
 - Global error handling with toast notifications
 - Loading states with overlay spinner
+
+### Security & Access Control
+
+- Row Level Security (RLS) policies enforce data isolation by sucursal
+- Branch users can only access their assigned sucursal data
+- Admin users have global access to all sucursales
+- User authentication required for all operations
+- Secure password handling through Supabase Auth
+- Real-time session management with auto-refresh tokens
+
+### Setup Requirements
+
+1. **Database Setup**: Run `/database/users_setup.sql` to create user tables and RLS policies
+2. **Environment Variables**: Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+3. **Initial Admin**: Create first admin user manually in Supabase Auth, then update role in users table
+4. **Sucursales Data**: Populate sucursales table with branch information

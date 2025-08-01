@@ -193,7 +193,11 @@ export class InventoryService {
    * @param {number} idSucursal - ID de la sucursal (opcional, usa default)
    * @returns {Promise<Object|null>} - Registro de inventario o null
    */
-  static async getCurrentInventory(idProducto, idSucursal = APP_CONFIG.DEFAULT_SUCURSAL_ID) {
+  static async getCurrentInventory(idProducto, idSucursal) {
+    if (!idSucursal) {
+      throw new Error('ID de sucursal es requerido');
+    }
+    
     try {
       const { data, error } = await supabase
         .from('inventarios')
@@ -225,10 +229,18 @@ export class InventoryService {
         idProducto,
         cantidadNueva,
         tipoMovimiento = 'conteo',
-        usuario = APP_CONFIG.DEFAULT_USER,
+        usuario,
         observaciones = null,
-        idSucursal = APP_CONFIG.DEFAULT_SUCURSAL_ID
+        idSucursal
       } = movementData;
+
+      if (!idSucursal) {
+        throw new Error('ID de sucursal es requerido');
+      }
+      
+      if (!usuario) {
+        throw new Error('Usuario es requerido');
+      }
 
       console.log('Registrando movimiento:', movementData);
 
@@ -313,7 +325,11 @@ export class InventoryService {
    * @param {number} idSucursal - ID de la sucursal
    * @returns {Promise<Array>} - Lista de movimientos
    */
-  static async getRecentMovements(limit = APP_CONFIG.HISTORY_LIMIT, idSucursal = APP_CONFIG.DEFAULT_SUCURSAL_ID) {
+  static async getRecentMovements(limit = APP_CONFIG.HISTORY_LIMIT, idSucursal) {
+    if (!idSucursal) {
+      throw new Error('ID de sucursal es requerido');
+    }
+    
     try {
       const { data, error } = await supabase
         .from('movimientos')
@@ -380,7 +396,11 @@ export class InventoryService {
    * @param {number} idSucursal - ID de la sucursal
    * @returns {Promise<Object>} - Estadísticas
    */
-  static async getInventoryStats(idSucursal = APP_CONFIG.DEFAULT_SUCURSAL_ID) {
+  static async getInventoryStats(idSucursal) {
+    if (!idSucursal) {
+      throw new Error('ID de sucursal es requerido');
+    }
+    
     try {
       // Obtener conteo de productos únicos
       const { count: totalProductos, error: countError } = await supabase
