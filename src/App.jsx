@@ -166,23 +166,6 @@ function App() {
     setScannedProduct(null);
   };
 
-  // Función de diagnóstico (comentada - disponible para debugging futuro)
-  /*
-  const testDatabaseConnection = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const diagnostics = await InventoryService.diagnoseSupabaseConnection();
-      console.log('📊 Diagnóstico completo:', diagnostics);
-      // ... resto del código de diagnóstico
-    } catch (error) {
-      console.error('❌ Error en diagnóstico:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  */
-
   const getTotalProductsScanned = () => stats.totalProductos;
   const getTotalItemsCounted = () => stats.totalUnidades;
 
@@ -381,218 +364,123 @@ function App() {
                     {getTotalProductsScanned()}
                   </div>
                   <div className="text-xs text-white/50 font-light tracking-wide">
-                    PRODUCTOS ESCANEADOS
-                  </div>
-                </div>
-                <div className="w-px h-12 bg-white/10"></div>
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-red-400 mb-1">
-                    {getTotalItemsCounted()}
-                  </div>
-                  <div className="text-xs text-white/50 font-light tracking-wide">
-                    UNIDADES CONTADAS
-                  </div>
-                </div>
-                <div className="w-px h-12 bg-white/10"></div>
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-green-400 mb-1">
-                    {stats.precision}%
-                  </div>
-                  <div className="text-xs text-white/50 font-light tracking-wide">
                     PRECISIÓN
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Layout mejorado de cards */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 mb-16">
+            {/* Layout principal con 3 cards en grid responsivo */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
               {/* Card de escaneo principal */}
-              <div className="xl:col-span-1 order-1 xl:order-1">
-                <ErrorBoundary>
-                  <BarcodeCard onScanBarcode={handleBarcodeScanning} />
-                </ErrorBoundary>
+              <div className="lg:col-span-1 xl:col-span-1 order-1">
+                <div className="h-full min-h-[500px]">
+                  <ErrorBoundary>
+                    <BarcodeCard onScanBarcode={handleBarcodeScanning} />
+                  </ErrorBoundary>
+                </div>
               </div>
 
-              {/* Historial de escaneos mejorado */}
-              <div className="xl:col-span-1 order-2 xl:order-2">
-                <Card
-                  title="Historial de Escaneos"
-                  variant="secondary"
-                  icon={
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  }
-                >
-                  {scannedItems.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
-                        <svg className="w-10 h-10 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                        </svg>
+              {/* Historial de movimientos */}
+              <div className="lg:col-span-1 xl:col-span-1 order-2">
+                <div className="h-full min-h-[500px]">
+                  <Card
+                    title="Historial de Movimientos"
+                    variant="secondary"
+                    icon={
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    }
+                  >
+                    {scannedItems.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
+                          <svg className="w-10 h-10 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                          </svg>
+                        </div>
+                        <h4 className="text-white/70 text-base font-medium mb-2">
+                          Sin movimientos previos
+                        </h4>
+                        <p className="text-white/40 text-sm font-light leading-relaxed max-w-xs mx-auto">
+                          Los movimientos recientes aparecerán aquí con información detallada
+                        </p>
                       </div>
-                      <h4 className="text-white/70 text-base font-medium mb-2">
-                        Sin escaneos previos
-                      </h4>
-                      <p className="text-white/40 text-sm font-light leading-relaxed max-w-xs mx-auto">
-                        Los productos escaneados aparecerán aquí con información detallada del inventario
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
-                      {scannedItems.map((item, index) => (
-                        <div 
-                          key={item.id}
-                          className={`
-                            group p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm
-                            transition-all duration-500 ease-out transform
-                            hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]
-                            hover:shadow-lg hover:shadow-black/10
-                          `}
-                          style={{ 
-                            animationDelay: `${index * 150}ms`,
-                            animation: 'slideInUp 0.6s ease-out forwards'
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <p className="font-medium text-white/95 text-base group-hover:text-white transition-colors">
-                                  {item.name}
-                                </p>
-                                <span className="px-2 py-1 bg-blue-500/20 border border-blue-400/30 rounded-lg text-xs font-medium text-blue-300">
-                                  {item.category}
-                                </span>
-                              </div>
-                              <div className="flex items-center space-x-3 mb-2">
-                                <span className="px-2 py-1 bg-gray-500/20 border border-gray-400/30 rounded-lg text-xs font-medium text-gray-300">
-                                  {item.barcode}
-                                </span>
-                                {item.count && (
-                                  <span className="px-2 py-1 bg-green-500/20 border border-green-400/30 rounded-lg text-xs font-medium text-green-300">
-                                    {item.count} uds.
+                    ) : (
+                      <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+                        {scannedItems.map((item, index) => (
+                          <div 
+                            key={item.id}
+                            className={`
+                              group p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm
+                              transition-all duration-500 ease-out transform
+                              hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]
+                              hover:shadow-lg hover:shadow-black/10
+                            `}
+                            style={{ 
+                              animationDelay: `${index * 150}ms`,
+                              animation: 'slideInUp 0.6s ease-out forwards'
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <p className="font-medium text-white/95 text-base group-hover:text-white transition-colors truncate">
+                                    {item.name}
+                                  </p>
+                                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-400/30 rounded-lg text-xs font-medium text-blue-300 flex-shrink-0">
+                                    {item.category}
                                   </span>
+                                </div>
+                                <div className="flex items-center space-x-3 mb-2 flex-wrap">
+                                  <span className="px-2 py-1 bg-gray-500/20 border border-gray-400/30 rounded-lg text-xs font-medium text-gray-300">
+                                    {item.barcode}
+                                  </span>
+                                  {item.count && (
+                                    <span className="px-2 py-1 bg-green-500/20 border border-green-400/30 rounded-lg text-xs font-medium text-green-300">
+                                      {item.count} uds.
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-white/40 text-xs font-light tracking-wide">
+                                  Registrado: {item.timestamp}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-center space-y-2 ml-4 flex-shrink-0">
+                                <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-400/30 flex items-center justify-center group-hover:bg-red-500/30 transition-colors">
+                                  <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                </div>
+                                {item.count && (
+                                  <div className="text-center">
+                                    <div className="text-green-400 text-lg font-semibold">
+                                      {item.count}
+                                    </div>
+                                    <div className="text-green-400/60 text-xs">
+                                      unidades
+                                    </div>
+                                  </div>
                                 )}
                               </div>
-                              <p className="text-white/40 text-xs font-light tracking-wide">
-                                Escaneado: {item.timestamp}
-                              </p>
-                              {item.lastCounted && (
-                                <p className="text-green-400/60 text-xs font-light tracking-wide">
-                                  Contado: {item.lastCounted}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex flex-col items-center space-y-2">
-                              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-400/30 flex items-center justify-center group-hover:bg-red-500/30 transition-colors">
-                                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                              </div>
-                              {item.count && (
-                                <div className="text-center">
-                                  <div className="text-green-400 text-lg font-semibold">
-                                    {item.count}
-                                  </div>
-                                  <div className="text-green-400/60 text-xs">
-                                    contadas
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                </div>
               </div>
-            </div>
 
-            {/* Cards adicionales de información */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <Card
-                title="Estado del Sistema"
-                variant="default"
-                icon={
-                  <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                }
-              >
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/70 text-sm">Cámara</span>
-                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-lg font-medium">Lista</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/70 text-sm">Escáner</span>
-                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-lg font-medium">Activo</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/70 text-sm">Base de datos</span>
-                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-lg font-medium">Conectada</span>
-                  </div>
+              {/* Nueva card de inventario actual */}
+              <div className="lg:col-span-2 xl:col-span-1 order-3">
+                <div className="h-full min-h-[500px]">
+                  <ErrorBoundary>
+                    <InventoryCard />
+                  </ErrorBoundary>
                 </div>
-              </Card>
-
-              <Card
-                title="Estadísticas de Sesión"
-                variant="secondary"
-                icon={
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                  </svg>
-                }
-              >
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/70 text-sm">Productos</span>
-                    <span className="text-white/90 font-semibold">{getTotalProductsScanned()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/70 text-sm">Unidades</span>
-                    <span className="text-white/90 font-semibold">{getTotalItemsCounted()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/70 text-sm">Precisión</span>
-                    <span className="text-green-400 font-semibold">100%</span>
-                  </div>
-                </div>
-              </Card>
-
-              <Card
-                title="Última Actividad"
-                variant="primary"
-                icon={
-                  <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                }
-              >
-                <div className="text-center py-2">
-                  {scannedItems.length > 0 ? (
-                    <div>
-                      <p className="text-white/90 text-sm font-medium mb-1">
-                        {scannedItems[0].name}
-                      </p>
-                      <p className="text-white/60 text-xs">
-                        {scannedItems[0].timestamp.split(' ')[1]}
-                      </p>
-                      {scannedItems[0].count && (
-                        <p className="text-green-400 text-xs mt-1">
-                          {scannedItems[0].count} unidades contadas
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-white/70 text-sm">
-                      Sin actividad reciente
-                    </p>
-                  )}
-                </div>
-              </Card>
+              </div>
             </div>
           </div>
         )}
