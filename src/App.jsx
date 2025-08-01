@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarcodeCard, Card, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard } from './components';
+import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard } from './components';
 import { InventoryService } from './services/inventoryService';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -408,37 +408,28 @@ function App() {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+                      <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
                         {scannedItems.map((item, index) => (
                           <div 
                             key={item.id}
-                            className={`
-                              group p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm
-                              transition-all duration-500 ease-out transform
-                              hover:bg-white/10 hover:border-white/20 hover:scale-[1.02]
-                              hover:shadow-lg hover:shadow-black/10
-                            `}
-                            style={{ 
-                              animationDelay: `${index * 150}ms`,
-                              animation: 'slideInUp 0.6s ease-out forwards'
-                            }}
+                            className="p-4 rounded-xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm"
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center space-x-2 mb-2">
-                                  <p className="font-medium text-white/95 text-base group-hover:text-white transition-colors truncate">
+                                  <p className="font-medium text-white/90 text-base truncate">
                                     {item.name}
                                   </p>
-                                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-400/30 rounded-lg text-xs font-medium text-blue-300 flex-shrink-0">
+                                  <span className="px-2 py-1 bg-blue-500/15 rounded-md text-xs font-medium text-blue-300 flex-shrink-0">
                                     {item.category}
                                   </span>
                                 </div>
-                                <div className="flex items-center space-x-3 mb-2 flex-wrap">
-                                  <span className="px-2 py-1 bg-gray-500/20 border border-gray-400/30 rounded-lg text-xs font-medium text-gray-300">
+                                <div className="flex items-center space-x-2 mb-2 flex-wrap">
+                                  <span className="px-2 py-1 bg-gray-500/15 rounded-md text-xs font-medium text-gray-300">
                                     {item.barcode}
                                   </span>
                                   {item.count && (
-                                    <span className="px-2 py-1 bg-green-500/20 border border-green-400/30 rounded-lg text-xs font-medium text-green-300">
+                                    <span className="px-2 py-1 bg-green-500/15 rounded-md text-xs font-medium text-green-300">
                                       {item.count} uds.
                                     </span>
                                   )}
@@ -448,18 +439,18 @@ function App() {
                                 </p>
                               </div>
                               <div className="flex flex-col items-center space-y-2 ml-4 flex-shrink-0">
-                                <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-400/30 flex items-center justify-center group-hover:bg-red-500/30 transition-colors">
-                                  <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
+                                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                   </svg>
                                 </div>
                                 {item.count && (
                                   <div className="text-center">
-                                    <div className="text-green-400 text-lg font-semibold">
+                                    <div className="text-green-400 text-sm font-medium">
                                       {item.count}
                                     </div>
                                     <div className="text-green-400/60 text-xs">
-                                      unidades
+                                      uds.
                                     </div>
                                   </div>
                                 )}

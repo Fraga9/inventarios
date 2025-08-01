@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { InventoryService } from '../../services/inventoryService';
 import { supabase } from '../../config/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 function InventoryCard() {
+  const { profile, isAdmin } = useAuth();
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,13 +13,29 @@ function InventoryCard() {
   const [filterBy, setFilterBy] = useState('all'); // 'all', 'low', 'recent'
 
   useEffect(() => {
-    loadInventoryData();
-  }, []);
+    if (profile) {
+      loadInventoryData();
+    }
+  }, [profile]);
 
   const loadInventoryData = async () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Skip loading if user doesn't have sucursal or is admin without specific sucursal
+      if (!profile?.id_sucursal && !isAdmin) {
+        setError('Usuario sin sucursal asignada');
+        setLoading(false);
+        return;
+      }
+
+      // For admin users, we might need to handle differently
+      if (isAdmin && !profile?.id_sucursal) {
+        setInventoryItems([]);
+        setLoading(false);
+        return;
+      }
       
       // Obtener inventario completo con información de productos
       const { data, error: fetchError } = await supabase
@@ -32,7 +50,7 @@ function InventoryCard() {
             descripcion
           )
         `)
-        .eq('id_sucursal', 1) // Usar sucursal por defecto
+        .eq('id_sucursal', profile.id_sucursal)
         .order('ultimo_conteo', { ascending: false });
 
       if (fetchError) {
