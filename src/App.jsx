@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard } from './components';
+import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard, ScanInventoryScreen, MovementHistoryScreen, CurrentInventoryScreen } from './components';
 import { InventoryService } from './services/inventoryService';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -7,7 +7,7 @@ import './App.css';
 function App() {
   const { isAuthenticated, user, profile, loading: authLoading, logout, isAdmin, sucursal } = useAuth();
   const [scannedItems, setScannedItems] = useState([]);
-  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'productCount', 'admin'
+  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'scan', 'history', 'inventory', 'productCount', 'admin'
   const [scannedProduct, setScannedProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -242,31 +242,66 @@ function App() {
             
             {/* Navigation and user info */}
             <div className="flex items-center space-x-4">
-              {/* Admin Navigation */}
-              {isAdmin && (
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentScreen('home')}
-                    className={`px-3 py-1 rounded-lg text-sm transition-all ${
-                      currentScreen === 'home' 
-                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                    }`}
-                  >
-                    Inventario
-                  </button>
+              {/* Navigation */}
+              <nav className="flex items-center space-x-1">
+                {isAdmin && (
                   <button
                     onClick={() => setCurrentScreen('admin')}
-                    className={`px-3 py-1 rounded-lg text-sm transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       currentScreen === 'admin' 
                         ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
                         : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
                     }`}
                   >
-                    Administración
+                    Admin
                   </button>
-                </div>
-              )}
+                )}
+                
+                {/* Inventory Navigation */}
+                <button
+                  onClick={() => setCurrentScreen('home')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    currentScreen === 'home' 
+                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  Resumen
+                </button>
+                
+                <button
+                  onClick={() => setCurrentScreen('scan')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    currentScreen === 'scan' || currentScreen === 'productCount'
+                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  Escanear
+                </button>
+                
+                <button
+                  onClick={() => setCurrentScreen('history')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    currentScreen === 'history' 
+                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  Historial
+                </button>
+                
+                <button
+                  onClick={() => setCurrentScreen('inventory')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    currentScreen === 'inventory' 
+                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  Inventario
+                </button>
+              </nav>
               
               <div className="text-right">
                 <p className="text-white/90 text-sm font-medium">{profile?.full_name}</p>
@@ -338,6 +373,12 @@ function App() {
           <div className="w-full max-w-7xl">
             <AdminDashboard />
           </div>
+        ) : currentScreen === 'scan' ? (
+          <ScanInventoryScreen onScanBarcode={handleBarcodeScanning} />
+        ) : currentScreen === 'history' ? (
+          <MovementHistoryScreen />
+        ) : currentScreen === 'inventory' ? (
+          <CurrentInventoryScreen />
         ) : currentScreen === 'productCount' ? (
           <div className="w-full max-w-3xl">
             <ProductCountScreen
@@ -370,108 +411,139 @@ function App() {
               </div>
             </div>
 
-            {/* Layout principal con 3 cards en grid responsivo */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 mb-16">
-              {/* Card de escaneo principal */}
-              <div className="lg:col-span-1 xl:col-span-1 order-1">
-                <div className="h-full min-h-[500px]">
-                  <ErrorBoundary>
-                    <BarcodeCard onScanBarcode={handleBarcodeScanning} />
-                  </ErrorBoundary>
-                </div>
-              </div>
+            {/* Quick Action Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+              {/* Escanear Inventario Card */}
+              <Card
+                title="Escanear Inventario"
+                description="Utiliza la cámara para escanear códigos de barras y realizar conteos"
+                variant="primary"
+                icon={
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                  </svg>
+                }
+                buttonText="Comenzar Escaneo"
+                onButtonClick={() => setCurrentScreen('scan')}
+              />
 
-              {/* Historial de movimientos */}
-              <div className="lg:col-span-1 xl:col-span-1 order-2">
-                <div className="h-full min-h-[500px]">
-                  <Card
-                    title="Historial de Movimientos"
-                    variant="secondary"
-                    icon={
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              {/* Historial de Movimientos Card */}
+              <Card
+                title="Historial de Movimientos"
+                description="Consulta el registro completo de todos los movimientos de inventario"
+                variant="secondary"
+                icon={
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+                buttonText="Ver Historial"
+                onButtonClick={() => setCurrentScreen('history')}
+              />
+
+              {/* Inventario Actual Card */}
+              <Card
+                title="Inventario Actual"
+                description="Explora el inventario completo con herramientas de búsqueda y filtrado"
+                variant="default"
+                icon={
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.75 7.5h16.5-1.5-15z" />
+                  </svg>
+                }
+                buttonText="Ver Inventario"
+                onButtonClick={() => setCurrentScreen('inventory')}
+              />
+            </div>
+
+            {/* Recent Activity Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Recent Scans Summary */}
+              <Card
+                title="Actividad Reciente"
+                variant="secondary"
+                icon={
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                  </svg>
+                }
+              >
+                {scannedItems.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
                       </svg>
-                    }
-                  >
-                    {scannedItems.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-6">
-                          <svg className="w-10 h-10 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                          </svg>
-                        </div>
-                        <h4 className="text-white/70 text-base font-medium mb-2">
-                          Sin movimientos previos
-                        </h4>
-                        <p className="text-white/40 text-sm font-light leading-relaxed max-w-xs mx-auto">
-                          Los movimientos recientes aparecerán aquí con información detallada
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-                        {scannedItems.map((item, index) => (
-                          <div 
-                            key={item.id}
-                            className="p-4 rounded-xl bg-white/[0.06] border border-white/[0.12] backdrop-blur-sm"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <p className="font-medium text-white/90 text-base truncate">
-                                    {item.name}
-                                  </p>
-                                  <span className="px-2 py-1 bg-blue-500/15 rounded-md text-xs font-medium text-blue-300 flex-shrink-0">
-                                    {item.category}
-                                  </span>
-                                </div>
-                                <div className="flex items-center space-x-2 mb-2 flex-wrap">
-                                  <span className="px-2 py-1 bg-gray-500/15 rounded-md text-xs font-medium text-gray-300">
-                                    {item.barcode}
-                                  </span>
-                                  {item.count && (
-                                    <span className="px-2 py-1 bg-green-500/15 rounded-md text-xs font-medium text-green-300">
-                                      {item.count} uds.
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-white/40 text-xs font-light tracking-wide">
-                                  Registrado: {item.timestamp}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-center space-y-2 ml-4 flex-shrink-0">
-                                <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
-                                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                </div>
-                                {item.count && (
-                                  <div className="text-center">
-                                    <div className="text-green-400 text-sm font-medium">
-                                      {item.count}
-                                    </div>
-                                    <div className="text-green-400/60 text-xs">
-                                      uds.
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                    </div>
+                    <h4 className="text-white/70 text-base font-medium mb-2">
+                      Sin actividad reciente
+                    </h4>
+                    <p className="text-white/40 text-sm">
+                      Comienza escaneando productos para ver la actividad aquí
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {scannedItems.slice(0, 5).map((item, index) => (
+                      <div 
+                        key={item.id}
+                        className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.12]"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-white/90 text-sm truncate">
+                              {item.name}
+                            </p>
+                            <p className="text-white/40 text-xs">
+                              {item.timestamp}
+                            </p>
                           </div>
-                        ))}
+                          {item.count && (
+                            <span className="px-2 py-1 bg-green-500/15 rounded-md text-xs font-medium text-green-300">
+                              {item.count} uds.
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    ))}
+                    {scannedItems.length > 5 && (
+                      <button
+                        onClick={() => setCurrentScreen('history')}
+                        className="w-full py-2 text-center text-white/60 text-sm hover:text-white/80 transition-colors"
+                      >
+                        Ver todos los movimientos →
+                      </button>
                     )}
-                  </Card>
-                </div>
-              </div>
+                  </div>
+                )}
+              </Card>
 
-              {/* Nueva card de inventario actual */}
-              <div className="lg:col-span-2 xl:col-span-1 order-3">
-                <div className="h-full min-h-[500px]">
-                  <ErrorBoundary>
-                    <InventoryCard />
-                  </ErrorBoundary>
+              {/* Quick Stats */}
+              <Card
+                title="Estadísticas de Inventario"
+                variant="default"
+                icon={
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                  </svg>
+                }
+              >
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-semibold text-white/95">{stats.totalProductos}</div>
+                    <div className="text-xs text-white/60">Productos</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-semibold text-white/95">{stats.totalUnidades}</div>
+                    <div className="text-xs text-white/60">Unidades</div>
+                  </div>
+                  <div className="text-center col-span-2">
+                    <div className="text-xl font-semibold text-green-400">{stats.precision}%</div>
+                    <div className="text-xs text-white/60">Precisión</div>
+                  </div>
                 </div>
-              </div>
+              </Card>
             </div>
           </div>
         )}
