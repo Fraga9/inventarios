@@ -9,3 +9,4 @@ export { AdminDashboard } from './Admin/AdminDashboard';
 export { ScanInventoryScreen } from './Inventory/ScanInventoryScreen';
 export { MovementHistoryScreen } from './Inventory/MovementHistoryScreen';
 export { CurrentInventoryScreen } from './Inventory/CurrentInventoryScreen';
+export { default as ExcelReportScreen } from './Reports/ExcelReportScreen';

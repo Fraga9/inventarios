@@ -54,8 +54,7 @@ export function CurrentInventoryScreen() {
             codigo_mrp,
             codigo_truper,
             marca,
-            descripcion,
-            precio_venta
+            descripcion
           )
         `)
         .eq('id_sucursal', profile.id_sucursal)
@@ -73,8 +72,6 @@ export function CurrentInventoryScreen() {
         brand: item.productos?.marca || 'Sin marca',
         barcode: item.productos?.codigo_mrp || item.productos?.codigo_truper || 'N/A',
         quantity: item.cantidad_actual,
-        price: item.productos?.precio_venta || 0,
-        totalValue: (item.cantidad_actual || 0) * (item.productos?.precio_venta || 0),
         lastCounted: new Date(item.ultimo_conteo),
         lastCountedFormatted: new Date(item.ultimo_conteo).toLocaleString('es-MX', {
           month: 'short',
@@ -92,14 +89,13 @@ export function CurrentInventoryScreen() {
       const totalItems = formattedItems.length;
       const lowStockItems = formattedItems.filter(item => item.isLowStock && !item.isOutOfStock).length;
       const outOfStockItems = formattedItems.filter(item => item.isOutOfStock).length;
-      const totalValue = formattedItems.reduce((sum, item) => sum + item.totalValue, 0);
 
       setInventoryItems(formattedItems);
       setStats({
         total: totalItems,
         lowStock: lowStockItems,
         outOfStock: outOfStockItems,
-        totalValue: totalValue
+        totalValue: 0 // Remove price calculations since precio_venta doesn't exist
       });
 
     } catch (error) {
@@ -158,9 +154,6 @@ export function CurrentInventoryScreen() {
         case 'quantity':
           comparison = a.quantity - b.quantity;
           break;
-        case 'value':
-          comparison = a.totalValue - b.totalValue;
-          break;
         case 'lastCounted':
           comparison = a.lastCounted - b.lastCounted;
           break;
@@ -194,13 +187,6 @@ export function CurrentInventoryScreen() {
     return 'Disponible';
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
 
   const handleSort = (field) => {
     if (sortBy === field) {
@@ -256,7 +242,7 @@ export function CurrentInventoryScreen() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card variant="default" className="text-center">
           <div className="space-y-2">
             <div className="text-2xl font-semibold text-white/95">{stats.total}</div>
@@ -273,12 +259,6 @@ export function CurrentInventoryScreen() {
           <div className="space-y-2">
             <div className="text-2xl font-semibold text-red-400">{stats.outOfStock}</div>
             <div className="text-sm text-white/60">Sin Stock</div>
-          </div>
-        </Card>
-        <Card variant="default" className="text-center">
-          <div className="space-y-2">
-            <div className="text-xl font-semibold text-green-400">{formatCurrency(stats.totalValue)}</div>
-            <div className="text-sm text-white/60">Valor Total</div>
           </div>
         </Card>
       </div>
@@ -336,7 +316,6 @@ export function CurrentInventoryScreen() {
                 <option value="name">Nombre</option>
                 <option value="brand">Marca</option>
                 <option value="quantity">Cantidad</option>
-                <option value="value">Valor</option>
                 <option value="lastCounted">Último Conteo</option>
                 <option value="barcode">Código</option>
               </select>
@@ -443,15 +422,6 @@ export function CurrentInventoryScreen() {
                     </button>
                   </th>
                   <th className="text-center py-3 px-4 text-white/70 font-medium text-sm">Estado</th>
-                  <th className="text-right py-3 px-4 text-white/70 font-medium text-sm">
-                    <button 
-                      onClick={() => handleSort('value')}
-                      className="flex items-center space-x-1 hover:text-white transition-colors ml-auto"
-                    >
-                      <span>Valor</span>
-                      {sortBy === 'value' && <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                    </button>
-                  </th>
                   <th className="text-center py-3 px-4 text-white/70 font-medium text-sm">
                     <button 
                       onClick={() => handleSort('lastCounted')}
@@ -497,16 +467,6 @@ export function CurrentInventoryScreen() {
                       <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${getStockStatusColor(item)}`}>
                         {getStockStatusLabel(item)}
                       </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="flex flex-col items-end">
-                        <span className="text-white/90 font-medium text-sm">
-                          {formatCurrency(item.totalValue)}
-                        </span>
-                        <span className="text-white/50 text-xs">
-                          {formatCurrency(item.price)} c/u
-                        </span>
-                      </div>
                     </td>
                     <td className="py-4 px-4 text-center">
                       <div className="flex flex-col items-center">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard, ScanInventoryScreen, MovementHistoryScreen, CurrentInventoryScreen } from './components';
+import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard, ScanInventoryScreen, MovementHistoryScreen, CurrentInventoryScreen, ExcelReportScreen } from './components';
 import { InventoryService } from './services/inventoryService';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
@@ -7,7 +7,7 @@ import './App.css';
 function App() {
   const { isAuthenticated, user, profile, loading: authLoading, logout, isAdmin, sucursal } = useAuth();
   const [scannedItems, setScannedItems] = useState([]);
-  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'scan', 'history', 'inventory', 'productCount', 'admin'
+  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'scan', 'history', 'inventory', 'productCount', 'admin', 'reports'
   const [scannedProduct, setScannedProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -301,6 +301,17 @@ function App() {
                 >
                   Inventario
                 </button>
+                
+                <button
+                  onClick={() => setCurrentScreen('reports')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    currentScreen === 'reports' 
+                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  Reportes
+                </button>
               </nav>
               
               <div className="text-right">
@@ -379,6 +390,10 @@ function App() {
           <MovementHistoryScreen />
         ) : currentScreen === 'inventory' ? (
           <CurrentInventoryScreen />
+        ) : currentScreen === 'reports' ? (
+          <div className="w-full max-w-7xl">
+            <ExcelReportScreen />
+          </div>
         ) : currentScreen === 'productCount' ? (
           <div className="w-full max-w-3xl">
             <ProductCountScreen
@@ -412,7 +427,7 @@ function App() {
             </div>
 
             {/* Quick Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
               {/* Escanear Inventario Card */}
               <Card
                 title="Escanear Inventario"
@@ -454,6 +469,20 @@ function App() {
                 }
                 buttonText="Ver Inventario"
                 onButtonClick={() => setCurrentScreen('inventory')}
+              />
+
+              {/* Reportes ERP Card */}
+              <Card
+                title="Reportes ERP"
+                description="Carga y analiza reportes Excel del sistema ERP para comparación de inventarios"
+                variant="secondary"
+                icon={
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                }
+                buttonText="Analizar Reportes"
+                onButtonClick={() => setCurrentScreen('reports')}
               />
             </div>
 

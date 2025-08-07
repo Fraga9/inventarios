@@ -74,10 +74,10 @@ This is a React inventory management application for "Promexma Control Interno" 
 
 ### Data Flow
 
-1. **Product Database**: Hardcoded in App.jsx with sample products (laptops, phones, tablets, headphones)
-2. **Barcode Scanning**: BarcodeCard → App.handleBarcodeScanning → sets scannedProduct
-3. **Product Counting**: ProductCountScreen → App.handleSaveCount → updates scanned items history
-4. **State Management**: Local state with useState, maintains last 10 scanned items
+1. **Product Database**: Products stored in Supabase `productos` table, queried by barcode via InventoryService
+2. **Barcode Scanning**: BarcodeCard → App.handleBarcodeScanning → InventoryService.findProductByBarcode → sets scannedProduct
+3. **Product Counting**: ProductCountScreen → App.handleSaveCount → InventoryService.registerMovement → updates database and UI
+4. **State Management**: Local state with useState, recent movements loaded from database via InventoryService.getRecentMovements
 
 ### Authentication System
 
