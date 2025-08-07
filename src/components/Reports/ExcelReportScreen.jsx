@@ -326,14 +326,6 @@ function ExcelReportScreen() {
           <div className="mt-2 text-xs">
             <span className="text-blue-300">• <strong>"Texto breve de material":</strong> Descripción (opcional)</span>
           </div>
-          <div className="mt-3 p-3 bg-green-500/10 border border-green-400/20 rounded-lg">
-            <p className="text-green-200 text-xs font-medium mb-1">💡 ¿Cómo funciona la comparación?</p>
-            <p className="text-green-300 text-xs">
-              • <strong>Sistema ERP:</strong> Datos del Excel (columna "Libre utilización")<br/>
-              • <strong>Físico/App:</strong> Inventario actual registrado en la aplicación (búsqueda automática por código MRP)<br/>
-              • <strong>Diferencia:</strong> Físico - Sistema (valores positivos = sobrante, negativos = faltante)
-            </p>
-          </div>
         </div>
       </div>
 

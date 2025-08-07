@@ -13,6 +13,7 @@ function App() {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({ totalProductos: 0, totalUnidades: 0, precision: 100 });
   const [showRegister, setShowRegister] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Cargar datos iniciales cuando el usuario esté autenticado
   useEffect(() => {
@@ -166,6 +167,11 @@ function App() {
     setScannedProduct(null);
   };
 
+  const navigateToScreen = (screen) => {
+    setCurrentScreen(screen);
+    setMobileMenuOpen(false); // Close mobile menu when navigating
+  };
+
   const getTotalProductsScanned = () => stats.totalProductos;
   const getTotalItemsCounted = () => stats.totalUnidades;
 
@@ -228,111 +234,268 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header mejorado siguiendo el design system */}
+      {/* Mobile-Responsive Header */}
       <header className="relative overflow-hidden backdrop-blur-xl border-b border-white/10 bg-gradient-to-r from-white/[0.08] via-white/[0.04] to-white/[0.08]">
-        <div className="relative z-10 py-8 px-6">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex-1">
-              <h1 className="text-3xl font-light text-white/95 tracking-wide text-center">
-                <span className="font-semibold text-red-400">Promexma</span>
-                <span className="mx-4 text-white/30">|</span>
-                <span className="text-white/80 font-light">Control Interno</span>
-              </h1>
-            </div>
-            
-            {/* Navigation and user info */}
-            <div className="flex items-center space-x-4">
-              {/* Navigation */}
-              <nav className="flex items-center space-x-1">
-                {isAdmin && (
+        <div className="relative z-10 py-4 md:py-8 px-4 md:px-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Mobile Header Layout */}
+            <div className="flex items-center justify-between">
+              {/* Logo/Title - Responsive */}
+              <div className="flex-1">
+                <h1 className="text-xl md:text-3xl font-light text-white/95 tracking-wide text-center md:text-center">
+                  <span className="font-semibold text-red-400">Promexma</span>
+                  <span className="mx-2 md:mx-4 text-white/30 hidden sm:inline">|</span>
+                  <span className="text-white/80 font-light hidden sm:inline md:inline">Control Interno</span>
+                </h1>
+              </div>
+              
+              {/* Desktop Navigation */}
+              <div className="hidden lg:flex items-center space-x-4">
+                {/* Navigation */}
+                <nav className="flex items-center space-x-1">
+                  {isAdmin && (
+                    <button
+                      onClick={() => navigateToScreen('admin')}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        currentScreen === 'admin' 
+                          ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                          : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                      }`}
+                    >
+                      Admin
+                    </button>
+                  )}
+                  
                   <button
-                    onClick={() => setCurrentScreen('admin')}
+                    onClick={() => navigateToScreen('home')}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      currentScreen === 'admin' 
+                      currentScreen === 'home' 
                         ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
                         : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
                     }`}
                   >
-                    Admin
+                    Resumen
                   </button>
-                )}
+                  
+                  <button
+                    onClick={() => navigateToScreen('scan')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      currentScreen === 'scan' || currentScreen === 'productCount'
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    Escanear
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateToScreen('history')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      currentScreen === 'history' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    Historial
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateToScreen('inventory')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      currentScreen === 'inventory' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    Inventario
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateToScreen('reports')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      currentScreen === 'reports' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    Reportes
+                  </button>
+                </nav>
                 
-                {/* Inventory Navigation */}
-                <button
-                  onClick={() => setCurrentScreen('home')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    currentScreen === 'home' 
-                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                  }`}
-                >
-                  Resumen
-                </button>
+                {/* User Info - Desktop */}
+                <div className="text-right">
+                  <p className="text-white/90 text-sm font-medium">{profile?.full_name}</p>
+                  <p className="text-white/60 text-xs">
+                    {isAdmin ? 'Administrador' : sucursal?.Sucursal || 'Sin sucursal'}
+                  </p>
+                  {sucursal?.Región && !isAdmin && (
+                    <p className="text-white/50 text-xs">{sucursal.Región}</p>
+                  )}
+                </div>
                 
+                {/* Logout Button - Desktop */}
                 <button
-                  onClick={() => setCurrentScreen('scan')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    currentScreen === 'scan' || currentScreen === 'productCount'
-                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                  }`}
+                  onClick={handleLogout}
+                  className="p-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition-all"
+                  title="Cerrar sesión"
                 >
-                  Escanear
+                  <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                  </svg>
                 </button>
-                
-                <button
-                  onClick={() => setCurrentScreen('history')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    currentScreen === 'history' 
-                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                  }`}
-                >
-                  Historial
-                </button>
-                
-                <button
-                  onClick={() => setCurrentScreen('inventory')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    currentScreen === 'inventory' 
-                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                  }`}
-                >
-                  Inventario
-                </button>
-                
-                <button
-                  onClick={() => setCurrentScreen('reports')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    currentScreen === 'reports' 
-                      ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                      : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                  }`}
-                >
-                  Reportes
-                </button>
-              </nav>
-              
-              <div className="text-right">
-                <p className="text-white/90 text-sm font-medium">{profile?.full_name}</p>
-                <p className="text-white/60 text-xs">
-                  {isAdmin ? 'Administrador' : sucursal?.Sucursal || 'Sin sucursal'}
-                </p>
-                {sucursal?.Región && !isAdmin && (
-                  <p className="text-white/50 text-xs">{sucursal.Región}</p>
-                )}
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition-all"
-                title="Cerrar sesión"
-              >
-                <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                </svg>
-              </button>
+
+              {/* Mobile Menu Button */}
+              <div className="lg:hidden flex items-center space-x-2">
+                {/* User Avatar - Mobile */}
+                <div className="flex items-center">
+                  <div className="text-right mr-2">
+                    <p className="text-white/90 text-xs font-medium truncate max-w-20">{profile?.full_name?.split(' ')[0]}</p>
+                    <p className="text-white/60 text-xs">
+                      {isAdmin ? 'Admin' : (sucursal?.Sucursal?.substring(0, 8) + '...' || 'Sin sucursal')}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Hamburger Menu Button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="p-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/20 transition-all"
+                  aria-label="Toggle menu"
+                >
+                  {mobileMenuOpen ? (
+                    <svg className="w-6 h-6 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-white/90" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* Mobile Menu Dropdown */}
+            {mobileMenuOpen && (
+              <div className="lg:hidden mt-4 pb-4 border-t border-white/10 pt-4">
+                <nav className="flex flex-col space-y-2">
+                  {isAdmin && (
+                    <button
+                      onClick={() => navigateToScreen('admin')}
+                      className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                        currentScreen === 'admin' 
+                          ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                          : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Panel Admin</span>
+                      </div>
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => navigateToScreen('home')}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      currentScreen === 'home' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                      </svg>
+                      <span>Resumen</span>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateToScreen('scan')}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      currentScreen === 'scan' || currentScreen === 'productCount'
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                      </svg>
+                      <span>Escanear Inventario</span>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateToScreen('history')}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      currentScreen === 'history' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Historial de Movimientos</span>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateToScreen('inventory')}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      currentScreen === 'inventory' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.75 7.5h16.5-1.5-15z" />
+                      </svg>
+                      <span>Inventario Actual</span>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => navigateToScreen('reports')}
+                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      currentScreen === 'reports' 
+                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
+                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                      <span>Reportes ERP</span>
+                    </div>
+                  </button>
+
+                  {/* Logout Button - Mobile */}
+                  <div className="pt-2 mt-2 border-t border-white/10">
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium bg-red-500/10 text-red-300 border border-red-400/20 hover:bg-red-500/20 transition-all"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                        </svg>
+                        <span>Cerrar Sesión</span>
+                      </div>
+                    </button>
+                  </div>
+                </nav>
+              </div>
+            )}
           </div>
         </div>
         
@@ -440,7 +603,7 @@ function App() {
                   </svg>
                 }
                 buttonText="Comenzar Escaneo"
-                onButtonClick={() => setCurrentScreen('scan')}
+                onButtonClick={() => navigateToScreen('scan')}
               />
 
               {/* Historial de Movimientos Card */}
@@ -454,7 +617,7 @@ function App() {
                   </svg>
                 }
                 buttonText="Ver Historial"
-                onButtonClick={() => setCurrentScreen('history')}
+                onButtonClick={() => navigateToScreen('history')}
               />
 
               {/* Inventario Actual Card */}
@@ -468,7 +631,7 @@ function App() {
                   </svg>
                 }
                 buttonText="Ver Inventario"
-                onButtonClick={() => setCurrentScreen('inventory')}
+                onButtonClick={() => navigateToScreen('inventory')}
               />
 
               {/* Reportes ERP Card */}
@@ -482,7 +645,7 @@ function App() {
                   </svg>
                 }
                 buttonText="Analizar Reportes"
-                onButtonClick={() => setCurrentScreen('reports')}
+                onButtonClick={() => navigateToScreen('reports')}
               />
             </div>
 
@@ -538,7 +701,7 @@ function App() {
                     ))}
                     {scannedItems.length > 5 && (
                       <button
-                        onClick={() => setCurrentScreen('history')}
+                        onClick={() => navigateToScreen('history')}
                         className="w-full py-2 text-center text-white/60 text-sm hover:text-white/80 transition-colors"
                       >
                         Ver todos los movimientos →
