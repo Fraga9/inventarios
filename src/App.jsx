@@ -7,7 +7,7 @@ import './App.css';
 function App() {
   const { isAuthenticated, user, profile, loading: authLoading, logout, isAdmin, sucursal } = useAuth();
   const [scannedItems, setScannedItems] = useState([]);
-  const [currentScreen, setCurrentScreen] = useState('home'); // 'home', 'scan', 'history', 'inventory', 'productCount', 'admin', 'reports'
+  const [currentScreen, setCurrentScreen] = useState('scan'); // 'scan', 'history', 'inventory', 'productCount', 'admin', 'reports'
   const [scannedProduct, setScannedProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -145,7 +145,7 @@ function App() {
       // Recargar datos para actualizar la UI
       await loadInitialData();
       
-      setCurrentScreen('home');
+      setCurrentScreen('scan');
       setScannedProduct(null);
       
     } catch (error) {
@@ -163,7 +163,7 @@ function App() {
   };
 
   const handleBack = () => {
-    setCurrentScreen('home');
+    setCurrentScreen('scan');
     setScannedProduct(null);
   };
 
@@ -172,13 +172,11 @@ function App() {
     setMobileMenuOpen(false); // Close mobile menu when navigating
   };
 
-  const getTotalProductsScanned = () => stats.totalProductos;
-  const getTotalItemsCounted = () => stats.totalUnidades;
 
   const handleLogin = (result) => {
     // Login is handled by AuthContext, just reset any local state
     setError(null);
-    setCurrentScreen('home');
+    setCurrentScreen('scan');
   };
 
   const handleLogout = async () => {
@@ -186,7 +184,7 @@ function App() {
       await logout();
       setScannedItems([]);
       setScannedProduct(null);
-      setCurrentScreen('home');
+      setCurrentScreen('scan');
       setError(null);
     } catch (error) {
       console.error('Error logging out:', error);
@@ -266,16 +264,6 @@ function App() {
                     </button>
                   )}
                   
-                  <button
-                    onClick={() => navigateToScreen('home')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      currentScreen === 'home' 
-                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                    }`}
-                  >
-                    Resumen
-                  </button>
                   
                   <button
                     onClick={() => navigateToScreen('scan')}
@@ -398,21 +386,6 @@ function App() {
                     </button>
                   )}
                   
-                  <button
-                    onClick={() => navigateToScreen('home')}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                      currentScreen === 'home' 
-                        ? 'bg-red-500/20 text-red-400 border border-red-400/30' 
-                        : 'bg-white/10 text-white/70 border border-white/20 hover:bg-white/20'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                      </svg>
-                      <span>Resumen</span>
-                    </div>
-                  </button>
                   
                   <button
                     onClick={() => navigateToScreen('scan')}
@@ -566,178 +539,8 @@ function App() {
             />
           </div>
         ) : (
-          <div className="w-full max-w-6xl space-y-12">
-            {/* Título principal mejorado */}
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-light text-white/95 mb-4 tracking-wide">
-                Control de <span className="font-semibold text-red-400">Inventario</span>
-              </h2>
-              <p className="text-white/60 font-light text-lg max-w-2xl mx-auto leading-relaxed">
-                Gestión inteligente y eficiente de productos con tecnología de escaneo avanzada
-              </p>
-              
-              {/* Estadísticas rápidas mejoradas */}
-              <div className="flex justify-center space-x-8 mt-8">
-                <div className="text-center">
-                  <div className="text-2xl font-semibold text-white/95 mb-1">
-                    {getTotalProductsScanned()}
-                  </div>
-                  <div className="text-xs text-white/50 font-light tracking-wide">
-                    PRECISIÓN
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-              {/* Escanear Inventario Card */}
-              <Card
-                title="Escanear Inventario"
-                description="Utiliza la cámara para escanear códigos de barras y realizar conteos"
-                variant="primary"
-                icon={
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                  </svg>
-                }
-                buttonText="Comenzar Escaneo"
-                onButtonClick={() => navigateToScreen('scan')}
-              />
-
-              {/* Historial de Movimientos Card */}
-              <Card
-                title="Historial de Movimientos"
-                description="Consulta el registro completo de todos los movimientos de inventario"
-                variant="secondary"
-                icon={
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                }
-                buttonText="Ver Historial"
-                onButtonClick={() => navigateToScreen('history')}
-              />
-
-              {/* Inventario Actual Card */}
-              <Card
-                title="Inventario Actual"
-                description="Explora el inventario completo con herramientas de búsqueda y filtrado"
-                variant="default"
-                icon={
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.75 7.5h16.5-1.5-15z" />
-                  </svg>
-                }
-                buttonText="Ver Inventario"
-                onButtonClick={() => navigateToScreen('inventory')}
-              />
-
-              {/* Reportes ERP Card */}
-              <Card
-                title="Reportes ERP"
-                description="Carga y analiza reportes Excel del sistema ERP para comparación de inventarios"
-                variant="secondary"
-                icon={
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
-                }
-                buttonText="Analizar Reportes"
-                onButtonClick={() => navigateToScreen('reports')}
-              />
-            </div>
-
-            {/* Recent Activity Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Recent Scans Summary */}
-              <Card
-                title="Actividad Reciente"
-                variant="secondary"
-                icon={
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                  </svg>
-                }
-              >
-                {scannedItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-                      </svg>
-                    </div>
-                    <h4 className="text-white/70 text-base font-medium mb-2">
-                      Sin actividad reciente
-                    </h4>
-                    <p className="text-white/40 text-sm">
-                      Comienza escaneando productos para ver la actividad aquí
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {scannedItems.slice(0, 5).map((item, index) => (
-                      <div 
-                        key={item.id}
-                        className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.12]"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-white/90 text-sm truncate">
-                              {item.name}
-                            </p>
-                            <p className="text-white/40 text-xs">
-                              {item.timestamp}
-                            </p>
-                          </div>
-                          {item.count && (
-                            <span className="px-2 py-1 bg-green-500/15 rounded-md text-xs font-medium text-green-300">
-                              {item.count} uds.
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {scannedItems.length > 5 && (
-                      <button
-                        onClick={() => navigateToScreen('history')}
-                        className="w-full py-2 text-center text-white/60 text-sm hover:text-white/80 transition-colors"
-                      >
-                        Ver todos los movimientos →
-                      </button>
-                    )}
-                  </div>
-                )}
-              </Card>
-
-              {/* Quick Stats */}
-              <Card
-                title="Estadísticas de Inventario"
-                variant="default"
-                icon={
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                  </svg>
-                }
-              >
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-semibold text-white/95">{stats.totalProductos}</div>
-                    <div className="text-xs text-white/60">Productos</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-semibold text-white/95">{stats.totalUnidades}</div>
-                    <div className="text-xs text-white/60">Unidades</div>
-                  </div>
-                  <div className="text-center col-span-2">
-                    <div className="text-xl font-semibold text-green-400">{stats.precision}%</div>
-                    <div className="text-xs text-white/60">Precisión</div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
+          // Fallback to scan screen
+          <ScanInventoryScreen onScanBarcode={handleBarcodeScanning} />
         )}
       </main>
     </div>
