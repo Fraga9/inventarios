@@ -85,12 +85,10 @@ export class AuthService {
   // Get current session
   static async getSession() {
     try {
-      console.log('Getting session...');
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) throw error;
       
       if (session?.user) {
-        console.log('Session found, getting profile for:', session.user.email);
         try {
           const profile = await this.getUserProfile(session.user.id);
           return {
@@ -99,17 +97,21 @@ export class AuthService {
             profile
           };
         } catch (profileError) {
-          console.error('Profile fetch failed, but allowing login:', profileError);
-          // Allow login even if profile fetch fails
+          console.error('Profile fetch failed, using fallback:', profileError);
           return {
             session,
             user: session.user,
-            profile: null
+            profile: {
+              id: session.user.id,
+              full_name: session.user.email,
+              role: 'sucursal',
+              id_sucursal: null,
+              is_active: true
+            }
           };
         }
       }
       
-      console.log('No session found');
       return { session: null, user: null, profile: null };
     } catch (error) {
       console.error('Error getting session:', error);
@@ -258,16 +260,13 @@ export class AuthService {
   // Listen to auth state changes
   static onAuthStateChange(callback) {
     return supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change event:', event);
       let profile = null;
       
       if (session?.user) {
         try {
-          console.log('Fetching profile for auth change:', session.user.email);
           profile = await this.getUserProfile(session.user.id);
         } catch (error) {
           console.error('Error getting profile on auth change:', error);
-          // Continue without profile to avoid blocking
           profile = null;
         }
       }

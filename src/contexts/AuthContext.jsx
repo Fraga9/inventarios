@@ -12,26 +12,86 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
+    let authListener = null;
 
     const initAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
+      try {        
+        if (!mounted) return;
         
-        if (mounted) {
-          if (session?.user) {
-            setSession(session);
-            setUser(session.user);
-            // Skip profile for now to avoid infinite loop
-            setProfile({ role: 'admin', full_name: 'Test User', id_sucursal: null });
-          } else {
-            setSession(null);
-            setUser(null);
-            setProfile(null);
+        // Get current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        if (mounted && currentSession?.user) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+          
+          try {
+            const userProfile = await AuthService.getUserProfile(currentSession.user.id);
+            setProfile(userProfile);
+          } catch (profileError) {
+            console.error('Error loading user profile:', profileError);
+            const fallbackProfile = {
+              id: currentSession.user.id,
+              full_name: currentSession.user.email,
+              role: 'sucursal',
+              id_sucursal: null,
+              is_active: true
+            };
+            setProfile(fallbackProfile);
           }
+        } else if (mounted) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+        }
+        
+        // Set up auth state listener
+        authListener = supabase.auth.onAuthStateChange(async (event, session) => {
+          if (!mounted) return;
+          
+          switch (event) {
+            case 'SIGNED_IN':
+              if (session?.user) {
+                setSession(session);
+                setUser(session.user);
+                
+                try {
+                  const userProfile = await AuthService.getUserProfile(session.user.id);
+                  setProfile(userProfile);
+                } catch (profileError) {
+                  console.error('Error loading profile on signin:', profileError);
+                  setProfile({
+                    id: session.user.id,
+                    full_name: session.user.email,
+                    role: 'sucursal',
+                    id_sucursal: null,
+                    is_active: true
+                  });
+                }
+              }
+              break;
+              
+            case 'SIGNED_OUT':
+              setSession(null);
+              setUser(null);
+              setProfile(null);
+              break;
+              
+            case 'TOKEN_REFRESHED':
+              if (session) {
+                setSession(session);
+                setUser(session.user);
+              }
+              break;
+          }
+        });
+
+        if (mounted) {
           setLoading(false);
         }
+        
       } catch (error) {
-        console.error('Auth init error:', error);
+        console.error('Auth initialization error:', error);
         if (mounted) {
           setSession(null);
           setUser(null);
@@ -45,18 +105,16 @@ export function AuthProvider({ children }) {
 
     return () => {
       mounted = false;
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe();
+      }
     };
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   const login = async (email, password) => {
     setLoading(true);
     try {
       const result = await AuthService.signIn(email, password);
-      
-      setUser(result.user);
-      setSession(result.session);
-      setProfile(result.profile);
-      
       return result;
     } catch (error) {
       console.error('Login error:', error);
@@ -68,9 +126,6 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     await AuthService.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
   };
 
   const value = {
