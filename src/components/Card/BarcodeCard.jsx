@@ -385,18 +385,19 @@ function BarcodeCard({ onScanBarcode }) {
   const toggleManualInput = () => {
     setShowManualInput(!showManualInput);
     setManualBarcode('');
+    setCameraError(null); // Clear any camera errors when switching modes
     if (isScanning) {
       handleStopScanning();
     }
   };
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full min-h-[600px] md:min-h-[500px]">
       <div 
         className={`
           relative overflow-hidden rounded-3xl backdrop-blur-xl border border-white/10 
           bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-white/[0.02]
-          transition-all duration-500 ease-out h-full flex flex-col
+          transition-all duration-500 ease-out h-full min-h-full flex flex-col
           ${isHovered ? 'transform scale-[1.02] shadow-2xl shadow-white/5' : 'shadow-xl shadow-black/10'}
           before:absolute before:inset-0 before:rounded-3xl 
           before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent 
@@ -406,7 +407,7 @@ function BarcodeCard({ onScanBarcode }) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="relative z-10 p-8 flex flex-col h-full">
+        <div className="relative z-10 p-4 md:p-8 flex flex-col min-h-full">
           {/* Header con ícono y título */}
           <div className="flex items-center mb-6 space-x-4">
             <div className={`
@@ -439,10 +440,10 @@ function BarcodeCard({ onScanBarcode }) {
           
           {/* Área de cámara/escaneo */}
           {isScanning && (
-            <div className="mb-6 rounded-2xl overflow-hidden bg-black/50 border border-white/20 relative">
+            <div className="mb-4 md:mb-6 rounded-2xl overflow-hidden bg-black/50 border border-white/20 relative">
               <video 
                 ref={videoRef}
-                className="w-full h-48 object-cover"
+                className="w-full h-32 md:h-48 object-cover"
                 autoPlay 
                 playsInline 
                 muted
@@ -454,7 +455,7 @@ function BarcodeCard({ onScanBarcode }) {
               
               {/* Overlay de escaneo */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-48 h-32 border-2 border-red-400 border-dashed rounded-lg animate-pulse">
+                <div className="w-32 h-20 md:w-48 md:h-32 border-2 border-red-400 border-dashed rounded-lg animate-pulse">
                   <div className="w-full h-full relative">
                     <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-red-400"></div>
                     <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-red-400"></div>
@@ -468,17 +469,17 @@ function BarcodeCard({ onScanBarcode }) {
           
           {/* Error de cámara con sugerencia de entrada manual */}
           {cameraError && (
-            <div className="mb-6 p-4 bg-red-500/20 border border-red-400/30 rounded-2xl">
+            <div className="mb-4 md:mb-6 p-3 md:p-4 bg-red-500/20 border border-red-400/30 rounded-2xl">
               <p className="text-red-200 text-sm font-light mb-3">
                 {cameraError}
               </p>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <p className="text-red-300/80 text-xs">
                   💡 Puedes ingresar el código manualmente
                 </p>
                 <button
                   onClick={toggleManualInput}
-                  className="px-3 py-1 bg-red-500/30 hover:bg-red-500/40 border border-red-400/40 rounded-lg text-red-200 text-xs font-medium transition-colors"
+                  className="px-4 py-2 bg-red-500/30 hover:bg-red-500/40 border border-red-400/40 rounded-lg text-red-200 text-xs font-medium transition-colors self-start sm:self-auto"
                 >
                   Entrada manual
                 </button>
@@ -488,36 +489,45 @@ function BarcodeCard({ onScanBarcode }) {
 
           {/* Entrada manual de código */}
           {showManualInput && (
-            <form onSubmit={handleManualSubmit} className="mb-6 p-4 bg-white/5 border border-white/10 rounded-2xl">
-              <h4 className="text-white/90 font-medium mb-3 text-sm">Ingresa el código manualmente</h4>
-              <div className="flex space-x-3">
-                <input
-                  type="text"
-                  value={manualBarcode}
-                  onChange={(e) => setManualBarcode(e.target.value)}
-                  placeholder="Código de barras..."
-                  className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-red-400/50 focus:bg-white/15 transition-all"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={!manualBarcode.trim()}
-                  className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 rounded-xl text-red-200 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ✓
-                </button>
+            <div className="mb-4 md:mb-6 p-3 md:p-4 bg-white/10 border border-white/20 rounded-2xl">
+              <div className="flex items-center mb-3 space-x-2">
+                <svg className="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                </svg>
+                <h4 className="text-white/90 font-medium text-sm">Entrada Manual Activa</h4>
               </div>
-            </form>
+              <form onSubmit={handleManualSubmit}>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    value={manualBarcode}
+                    onChange={(e) => setManualBarcode(e.target.value)}
+                    placeholder="Código de barras o número de producto..."
+                    className="flex-1 px-3 md:px-4 py-3 bg-white/15 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:border-red-400/50 focus:bg-white/20 transition-all text-sm md:text-base"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={!manualBarcode.trim()}
+                    className="px-4 md:px-6 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 rounded-xl text-red-200 hover:text-red-100 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base min-w-[80px] flex items-center justify-center"
+                  >
+                    <span className="md:hidden">Procesar</span>
+                    <span className="hidden md:inline">Procesar ✓</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           )}
           
           {/* Descripción */}
-          <p className="text-white/75 text-sm leading-relaxed mb-6 font-light">
+          <p className="text-white/75 text-sm leading-relaxed mb-4 md:mb-6 font-light">
             Utiliza la cámara para escanear códigos de barras y agregar productos 
             al inventario de forma precisa y eficiente.
           </p>
           
-          {/* Características - flex-1 para ocupar el espacio disponible */}
-          <div className="space-y-4 mb-8 flex-1">
+          {/* Características - solo se muestra cuando no está en modo manual */}
+          {!showManualInput && (
+            <div className="space-y-3 md:space-y-4 mb-6 md:mb-8 flex-1">
             {[
               { icon: "✓", text: "Identificación automática de productos" },
               { icon: "✓", text: "Compatible con múltiples formatos" },
@@ -526,60 +536,68 @@ function BarcodeCard({ onScanBarcode }) {
               <div 
                 key={index}
                 className={`
-                  flex items-center space-x-3 text-sm text-white/70 font-light
+                  flex items-center space-x-3 text-xs md:text-sm text-white/70 font-light
                   transform transition-all duration-300 ease-out
                   ${isHovered ? 'translate-x-1' : ''}
                 `}
                 style={{ transitionDelay: `${index * 50}ms` }}
               >
-                <span className="w-5 h-5 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-medium flex-shrink-0">
+                <span className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-red-500/20 text-red-400 text-xs flex items-center justify-center font-medium flex-shrink-0">
                   {feature.icon}
                 </span>
                 <span>{feature.text}</span>
               </div>
             ))}
-          </div>
+            </div>
+          )}
           
           {/* Botones de acción */}
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {/* Botón principal de escaneo */}
             <button 
               onClick={handleScanClick}
-              disabled={isScanning && !cameraError}
+              disabled={showManualInput}
               className={`
-                group relative w-full overflow-hidden rounded-3xl border backdrop-blur-sm 
-                transition-all duration-300 ease-out font-semibold text-lg py-8 px-8
-                ${isScanning 
-                  ? cameraError 
-                    ? "bg-red-500/30 border-red-400/50 hover:bg-red-500/40 text-red-100 hover:text-white cursor-pointer" 
-                    : "bg-red-500/20 border-red-400/40 cursor-not-allowed text-red-200"
-                  : "bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-400/30 hover:from-red-500/30 hover:to-red-600/30 hover:border-red-400/50 text-red-100 hover:text-white active:scale-[0.98] hover:shadow-2xl hover:shadow-red-500/20"
+                group relative w-full overflow-hidden rounded-2xl md:rounded-3xl border backdrop-blur-sm 
+                transition-all duration-300 ease-out font-semibold text-base md:text-lg py-4 md:py-8 px-4 md:px-8
+                ${showManualInput
+                  ? "bg-gray-500/20 border-gray-400/40 cursor-not-allowed text-gray-300"
+                  : isScanning 
+                    ? "bg-orange-500/20 border-orange-400/30 hover:bg-orange-500/30 text-orange-200 hover:text-orange-100 cursor-pointer" 
+                    : "bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-400/30 hover:from-red-500/30 hover:to-red-600/30 hover:border-red-400/50 text-red-100 hover:text-white active:scale-[0.98] hover:shadow-2xl hover:shadow-red-500/20"
                 }
                 before:absolute before:inset-0 before:bg-gradient-to-r 
                 before:from-red-400/20 before:via-red-400/10 before:to-transparent 
                 before:translate-x-[-100%] before:transition-transform before:duration-500
-                ${!isScanning || cameraError ? 'hover:before:translate-x-[100%]' : ''}
+                ${!showManualInput ? 'hover:before:translate-x-[100%]' : ''}
                 transform hover:scale-[1.02] transition-transform
               `}
           >
-            <div className="relative z-10 flex items-center justify-center space-x-4">
+            <div className="relative z-10 flex items-center justify-center space-x-2 md:space-x-4">
               {isScanning && !cameraError ? (
                 <>
                   <div className="relative">
-                    <div className="w-7 h-7 border-3 border-red-400/30 rounded-full animate-spin">
-                      <div className="absolute top-0 left-0 w-7 h-7 border-3 border-transparent border-t-red-400 rounded-full"></div>
+                    <div className="w-5 h-5 md:w-7 md:h-7 border-2 md:border-3 border-red-400/30 rounded-full animate-spin">
+                      <div className="absolute top-0 left-0 w-5 h-5 md:w-7 md:h-7 border-2 md:border-3 border-transparent border-t-red-400 rounded-full"></div>
                     </div>
                   </div>
-                  <span className="text-xl">Escaneando...</span>
+                  <span className="text-base md:text-xl">Escaneando...</span>
                 </>
               ) : (
                 <>
-                  <svg className="w-8 h-8 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <svg className="w-6 h-6 md:w-8 md:h-8 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
                   </svg>
-                  <span className="text-xl">
-                    {cameraError ? 'Reintentar Escaneo' : 'Escanear Código'}
+                  <span className="text-base md:text-xl">
+                    {showManualInput 
+                      ? 'Modo Manual Activo' 
+                      : isScanning
+                        ? 'Detener Escaneo'
+                        : cameraError 
+                          ? 'Reintentar Escaneo' 
+                          : 'Escanear Código'
+                    }
                   </span>
                 </>
               )}
@@ -591,20 +609,40 @@ function BarcodeCard({ onScanBarcode }) {
             )}
           </button>
 
-          {/* Botón de entrada manual alternativo */}
-          {!isScanning && !cameraError && (
-            <button
-              onClick={toggleManualInput}
-              className="group relative w-full overflow-hidden rounded-2xl border border-white/20 bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:border-white/30 text-white/80 hover:text-white transition-all duration-300 ease-out font-medium text-sm py-4 px-6 active:scale-[0.98]"
-            >
-              <div className="relative z-10 flex items-center justify-center space-x-3">
-                <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+          {/* Botón de entrada manual alternativo - Siempre visible */}
+          <button
+            onClick={toggleManualInput}
+            disabled={isScanning && !cameraError}
+            className={`
+              group relative w-full overflow-hidden rounded-xl md:rounded-2xl border backdrop-blur-sm transition-all duration-300 ease-out font-medium text-sm py-3 md:py-4 px-4 md:px-6 active:scale-[0.98]
+              ${isScanning && !cameraError
+                ? "border-gray-400/20 bg-gray-500/5 text-gray-400 cursor-not-allowed"
+                : showManualInput
+                  ? "border-orange-400/30 bg-orange-500/10 hover:bg-orange-500/20 text-orange-200 hover:text-orange-100"
+                  : "border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30 text-white/80 hover:text-white"
+              }
+            `}
+          >
+            <div className="relative z-10 flex items-center justify-center space-x-2 md:space-x-3">
+              {showManualInput ? (
+                <svg className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
                 </svg>
-                <span>Ingresar código manualmente</span>
-              </div>
-            </button>
-          )}
+              )}
+              <span className="text-xs md:text-sm">
+                {isScanning && !cameraError
+                  ? 'Detén el escaneo para usar modo manual'
+                  : showManualInput 
+                    ? 'Volver al escáner de cámara' 
+                    : 'Ingresar código manualmente'
+                }
+              </span>
+            </div>
+          </button>
         </div>
         </div>
 
