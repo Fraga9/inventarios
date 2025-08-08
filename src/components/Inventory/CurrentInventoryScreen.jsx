@@ -23,8 +23,11 @@ export function CurrentInventoryScreen() {
   const itemsPerPage = 50;
 
   useEffect(() => {
-    if (profile) {
+    if (profile?.id_sucursal || (profile?.role === 'admin' && !profile?.id_sucursal)) {
       loadInventoryData();
+    } else if (profile && !profile.id_sucursal && profile.role !== 'admin') {
+      setError('Usuario sin sucursal asignada');
+      setLoading(false);
     }
   }, [profile]);
 
@@ -33,12 +36,12 @@ export function CurrentInventoryScreen() {
       setLoading(true);
       setError(null);
 
-      if (!profile?.id_sucursal && !isAdmin) {
+      if (!profile?.id_sucursal && profile?.role !== 'admin') {
         setError('Usuario sin sucursal asignada');
         return;
       }
 
-      if (isAdmin && !profile?.id_sucursal) {
+      if (profile?.role === 'admin' && !profile?.id_sucursal) {
         setInventoryItems([]);
         setStats({ total: 0, lowStock: 0, outOfStock: 0, totalValue: 0 });
         return;
