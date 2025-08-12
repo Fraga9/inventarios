@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { supabase, supabaseAdmin } from '../config/supabase';
 
 export class AuthService {
   // Sign in with email and password
@@ -304,6 +304,219 @@ export class AuthService {
     } catch (error) {
       console.error('Error updating password:', error);
       throw new Error(error.message || 'Error al actualizar contraseña');
+    }
+  }
+
+  // Check if admin operations are available
+  static isAdminConfigured() {
+    return supabaseAdmin !== null;
+  }
+
+  // Admin: Invite user by email (requires service key)
+  static async inviteUser(email, fullName, idSucursal, role = 'sucursal') {
+    try {
+      if (!supabaseAdmin) {
+        throw new Error('Operaciones administrativas no configuradas. Se requiere VITE_SUPABASE_SERVICE_KEY.');
+      }
+
+      console.log('Inviting user:', { email, fullName, idSucursal, role });
+
+      // Create the auth user with invite using admin client
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        data: {
+          full_name: fullName,
+          id_sucursal: idSucursal,
+          role: role
+        },
+        redirectTo: `${window.location.origin}/login`
+      });
+
+      if (authError) throw authError;
+
+      // Create the user profile record using regular client
+      if (authData.user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .insert([{
+            id: authData.user.id,
+            full_name: fullName,
+            id_sucursal: idSucursal,
+            role: role,
+            is_active: true,
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
+
+        if (profileError) {
+          console.warn('Profile creation failed:', profileError);
+        }
+
+        return {
+          user: authData.user,
+          profile: profileData
+        };
+      }
+
+      return authData;
+    } catch (error) {
+      console.error('Error inviting user:', error);
+      throw new Error(error.message || 'Error al invitar usuario');
+    }
+  }
+
+  // Admin: Create user directly (requires service key)
+  static async createUserForSucursal(email, password, fullName, idSucursal, role = 'sucursal') {
+    try {
+      if (!supabaseAdmin) {
+        throw new Error('Operaciones administrativas no configuradas. Se requiere VITE_SUPABASE_SERVICE_KEY.');
+      }
+
+      console.log('Creating user for sucursal:', { email, fullName, idSucursal, role });
+
+      // Create the auth user using admin client
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: {
+          full_name: fullName,
+          id_sucursal: idSucursal,
+          role: role
+        }
+      });
+
+      if (authError) throw authError;
+
+      // Create the user profile record using regular client
+      if (authData.user) {
+        console.log('Creating profile with data:', {
+          id: authData.user.id,
+          full_name: fullName,
+          id_sucursal: idSucursal,
+          role: role
+        });
+
+        const { data: profileData, error: profileError } = await supabase
+          .from('users')
+          .insert([{
+            id: authData.user.id,
+            full_name: fullName,
+            id_sucursal: idSucursal,
+            role: role,
+            is_active: true,
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
+
+        if (profileError) {
+          console.error('Profile creation failed:', profileError);
+          // Si el perfil falla, intentamos actualizar el existente
+          console.log('Attempting to update existing profile...');
+          const { data: updateData, error: updateError } = await supabase
+            .from('users')
+            .update({
+              full_name: fullName,
+              id_sucursal: idSucursal,
+              role: role,
+              is_active: true
+            })
+            .eq('id', authData.user.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Profile update also failed:', updateError);
+            throw new Error(`Error al crear perfil de usuario: ${profileError.message}`);
+          }
+
+          console.log('Profile updated successfully:', updateData);
+          return {
+            user: authData.user,
+            profile: updateData
+          };
+        }
+
+        console.log('Profile created successfully:', profileData);
+        return {
+          user: authData.user,
+          profile: profileData
+        };
+      }
+
+      return authData;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw new Error(error.message || 'Error al crear usuario');
+    }
+  }
+
+  // Alternative: Create user invitation record (works without service key)
+  static async createUserInvitation(email, fullName, idSucursal, role = 'sucursal') {
+    try {
+      console.log('Creating user invitation:', { email, fullName, idSucursal, role });
+
+      // Create invitation record in database
+      const { data: invitationData, error: invitationError } = await supabase
+        .from('user_invitations')
+        .insert([{
+          email,
+          full_name: fullName,
+          id_sucursal: idSucursal,
+          role: role,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        }])
+        .select()
+        .single();
+
+      if (invitationError) throw invitationError;
+
+      return {
+        invitation: invitationData,
+        message: 'Invitación creada. El usuario debe registrarse usando el email invitado.'
+      };
+    } catch (error) {
+      console.error('Error creating invitation:', error);
+      throw new Error(error.message || 'Error al crear invitación');
+    }
+  }
+
+  // Admin: Deactivate user (soft delete)
+  static async deactivateUser(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update({ is_active: false })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error deactivating user:', error);
+      throw new Error('Error al desactivar usuario');
+    }
+  }
+
+  // Admin: Reactivate user
+  static async activateUser(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .update({ is_active: true })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error activating user:', error);
+      throw new Error('Error al activar usuario');
     }
   }
 }

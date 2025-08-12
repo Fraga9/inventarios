@@ -28,3 +28,4 @@ dist-ssr
 .env.example
 
 database
+USER_MANAGEMENT_SETUP.md

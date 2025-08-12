@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard, ScanInventoryScreen, MovementHistoryScreen, CurrentInventoryScreen, ExcelReportScreen } from './components';
+import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard, UserManagement, ScanInventoryScreen, MovementHistoryScreen, CurrentInventoryScreen, ExcelReportScreen } from './components';
 import { InventoryService } from './services/inventoryService';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';

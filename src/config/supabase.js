@@ -4,8 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 // IMPORTANTE: Reemplaza estas URLs y keys con las de tu proyecto Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY || null;
 
-// Crear cliente de Supabase
+// Cliente principal para operaciones normales
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true, // Mantener sesión activa
@@ -13,6 +14,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   },
 });
+
+// Cliente administrativo para operaciones que requieren service role
+export const supabaseAdmin = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+}) : null;
 
 // Configuración de la aplicación
 export const APP_CONFIG = {

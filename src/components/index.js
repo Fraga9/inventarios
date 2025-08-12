@@ -6,6 +6,8 @@ export { default as ErrorBoundary } from './ErrorBoundary';
 export { Login } from './Auth/Login';
 export { Register } from './Auth/Register';
 export { AdminDashboard } from './Admin/AdminDashboard';
+export { SucursalesManagement } from './Admin/SucursalesManagement';
+export { UserManagement } from './Admin/UserManagement';
 export { ScanInventoryScreen } from './Inventory/ScanInventoryScreen';
 export { MovementHistoryScreen } from './Inventory/MovementHistoryScreen';
 export { CurrentInventoryScreen } from './Inventory/CurrentInventoryScreen';
