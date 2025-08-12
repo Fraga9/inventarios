@@ -227,7 +227,7 @@ export class InventoryService {
     try {
       const {
         idProducto,
-        cantidadNueva,
+        cantidadAgregada, // Cambio: ahora es cantidad a agregar, no cantidad nueva total
         tipoMovimiento = 'conteo',
         usuario,
         observaciones = null,
@@ -242,21 +242,30 @@ export class InventoryService {
         throw new Error('Usuario es requerido');
       }
 
-      console.log('Registrando movimiento:', movementData);
+      if (cantidadAgregada < 0) {
+        throw new Error('La cantidad agregada no puede ser negativa');
+      }
+
+      console.log('Registrando movimiento sumatorio:', movementData);
 
       // Obtener inventario actual
       const inventarioActual = await this.getCurrentInventory(idProducto, idSucursal);
       const cantidadAnterior = inventarioActual ? inventarioActual.cantidad_actual : 0;
+      
+      // Calcular nueva cantidad total (conteo ciego sumatorio)
+      const cantidadNuevaTotal = cantidadAnterior + cantidadAgregada;
 
       // Preparar datos del movimiento
       const movimiento = {
         id_sucursal: idSucursal,
         id_producto: idProducto,
         cantidad_anterior: cantidadAnterior,
-        cantidad_nueva: cantidadNueva,
+        cantidad_nueva: cantidadNuevaTotal,
         tipo_movimiento: tipoMovimiento,
         usuario,
-        observaciones
+        observaciones: observaciones ? 
+          `${observaciones} - Conteo sumatorio: +${cantidadAgregada} unidades` : 
+          `Conteo sumatorio: +${cantidadAgregada} unidades`
       };
 
       // Iniciar transacción usando RPC si es necesario, o hacer operaciones secuenciales
@@ -278,7 +287,7 @@ export class InventoryService {
         const { error: updateError } = await supabase
           .from('inventarios')
           .update({ 
-            cantidad_actual: cantidadNueva,
+            cantidad_actual: cantidadNuevaTotal,
             ultimo_conteo: new Date().toISOString(),
             fecha_actualizacion: new Date().toISOString()
           })
@@ -294,7 +303,7 @@ export class InventoryService {
           .insert({
             id_sucursal: idSucursal,
             id_producto: idProducto,
-            cantidad_actual: cantidadNueva,
+            cantidad_actual: cantidadNuevaTotal,
             ultimo_conteo: new Date().toISOString()
           });
 
@@ -303,19 +312,121 @@ export class InventoryService {
         }
       }
 
-      console.log('Movimiento registrado exitosamente:', movimientoData);
+      console.log('Movimiento sumatorio registrado exitosamente:', movimientoData);
       
       return {
         success: true,
         movimiento: movimientoData,
         cantidadAnterior,
-        cantidadNueva,
-        diferencia: cantidadNueva - cantidadAnterior
+        cantidadAgregada,
+        cantidadNuevaTotal,
+        diferencia: cantidadAgregada // En conteo sumatorio, la diferencia es lo que se agregó
       };
 
     } catch (error) {
-      console.error('Error registrando movimiento:', error);
+      console.error('Error registrando movimiento sumatorio:', error);
       throw new Error(`Error al registrar movimiento: ${error.message}`);
+    }
+  }
+
+  /**
+   * Resetear inventario de un producto a 0
+   * @param {Object} resetData - Datos del reseteo
+   * @returns {Promise<Object>} - Resultado de la operación
+   */
+  static async resetProductInventory(resetData) {
+    try {
+      const {
+        idProducto,
+        usuario,
+        idSucursal,
+        observaciones = 'Reseteo manual'
+      } = resetData;
+
+      if (!idSucursal) {
+        throw new Error('ID de sucursal es requerido');
+      }
+      
+      if (!usuario) {
+        throw new Error('Usuario es requerido');
+      }
+
+      if (!idProducto) {
+        throw new Error('ID de producto es requerido');
+      }
+
+      console.log('Reseteando inventario a 0:', resetData);
+
+      // Obtener inventario actual
+      const inventarioActual = await this.getCurrentInventory(idProducto, idSucursal);
+      const cantidadAnterior = inventarioActual ? inventarioActual.cantidad_actual : 0;
+
+      // Preparar datos del movimiento de reseteo
+      const movimiento = {
+        id_sucursal: idSucursal,
+        id_producto: idProducto,
+        cantidad_anterior: cantidadAnterior,
+        cantidad_nueva: 0,
+        tipo_movimiento: 'ajuste',
+        usuario,
+        observaciones: `${observaciones} - Inventario reseteado de ${cantidadAnterior} a 0 unidades`
+      };
+
+      // 1. Insertar movimiento de reseteo
+      const { data: movimientoData, error: movimientoError } = await supabase
+        .from('movimientos')
+        .insert(movimiento)
+        .select()
+        .single();
+
+      if (movimientoError) {
+        throw movimientoError;
+      }
+
+      // 2. Actualizar o crear registro de inventario con cantidad 0
+      if (inventarioActual) {
+        // Actualizar registro existente a 0
+        const { error: updateError } = await supabase
+          .from('inventarios')
+          .update({ 
+            cantidad_actual: 0,
+            ultimo_conteo: new Date().toISOString(),
+            fecha_actualizacion: new Date().toISOString()
+          })
+          .eq('id_inventario', inventarioActual.id_inventario);
+
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        // Crear nuevo registro con cantidad 0
+        const { error: insertError } = await supabase
+          .from('inventarios')
+          .insert({
+            id_sucursal: idSucursal,
+            id_producto: idProducto,
+            cantidad_actual: 0,
+            ultimo_conteo: new Date().toISOString()
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      console.log('Inventario reseteado exitosamente:', movimientoData);
+      
+      return {
+        success: true,
+        movimiento: movimientoData,
+        cantidadAnterior,
+        cantidadNueva: 0,
+        diferencia: -cantidadAnterior
+      };
+
+    } catch (error) {
+      console.error('Error reseteando inventario:', error);
+      throw new Error(`Error al resetear inventario: ${error.message}`);
     }
   }
 

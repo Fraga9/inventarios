@@ -113,7 +113,7 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      console.log(`Guardando conteo para ${barcode}: ${count} unidades`);
+      console.log(`Agregando al inventario ${barcode}: +${count} unidades`);
       
       if (!scannedProduct?.id_producto) {
         throw new Error('No se puede guardar el conteo: producto no identificado en el sistema');
@@ -125,22 +125,20 @@ function App() {
         throw new Error('Usuario sin sucursal asignada');
       }
 
-      // Registrar movimiento en la base de datos
+      // Registrar movimiento sumatorio en la base de datos
       const result = await InventoryService.registerMovement({
         idProducto: scannedProduct.id_producto,
-        cantidadNueva: count,
+        cantidadAgregada: count, // Cambio: ahora es cantidad agregada, no cantidad nueva total
         tipoMovimiento: 'conteo',
         usuario: profile?.full_name || user?.email || 'Usuario',
         idSucursal: idSucursal,
-        observaciones: `Conteo desde aplicación móvil - Código: ${barcode}`
+        observaciones: `Conteo ciego sumatorio desde aplicación móvil - Código: ${barcode}`
       });
       
-      // Mostrar confirmación
+      // Mostrar confirmación del conteo sumatorio
       const productName = scannedProduct?.name || 'Producto';
-      const diferencia = result.diferencia;
-      const diferenciaTxt = diferencia > 0 ? `+${diferencia}` : diferencia.toString();
       
-      alert(`✅ Conteo guardado exitosamente:\n\n${productName}\nCódigo: ${barcode}\nCantidad anterior: ${result.cantidadAnterior}\nCantidad nueva: ${count} unidades\nDiferencia: ${diferenciaTxt}`);
+      alert(`✅ Inventario actualizado exitosamente:\n\n${productName}\nCódigo: ${barcode}\nCantidad anterior: ${result.cantidadAnterior}\nCantidad agregada: +${result.cantidadAgregada} unidades\nNuevo total: ${result.cantidadNuevaTotal} unidades`);
       
       // Recargar datos para actualizar la UI
       await loadInitialData();
@@ -149,13 +147,62 @@ function App() {
       setScannedProduct(null);
       
     } catch (error) {
-      console.error('Error guardando conteo:', error);
+      console.error('Error guardando conteo sumatorio:', error);
       setError(`Error al guardar conteo: ${error.message}`);
       
       // En caso de error, permitir al usuario reintentar
-      const retry = window.confirm(`Error al guardar el conteo: ${error.message}\n\n¿Deseas reintentar?`);
+      const retry = window.confirm(`Error al agregar al inventario: ${error.message}\n\n¿Deseas reintentar?`);
       if (retry) {
         await handleSaveCount(barcode, count);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetInventory = async (barcode) => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log(`Reseteando inventario ${barcode} a 0`);
+      
+      if (!scannedProduct?.id_producto) {
+        throw new Error('No se puede resetear: producto no identificado en el sistema');
+      }
+      
+      // Obtener ID de sucursal del usuario actual
+      const idSucursal = profile?.id_sucursal;
+      if (!idSucursal) {
+        throw new Error('Usuario sin sucursal asignada');
+      }
+
+      // Resetear inventario usando el nuevo método
+      const result = await InventoryService.resetProductInventory({
+        idProducto: scannedProduct.id_producto,
+        usuario: profile?.full_name || user?.email || 'Usuario',
+        idSucursal: idSucursal,
+        observaciones: `Reseteo manual desde aplicación móvil - Código: ${barcode}`
+      });
+      
+      // Mostrar confirmación del reseteo
+      const productName = scannedProduct?.name || 'Producto';
+      
+      alert(`✅ Inventario reseteado exitosamente:\n\n${productName}\nCódigo: ${barcode}\nCantidad anterior: ${result.cantidadAnterior} unidades\nNueva cantidad: 0 unidades\n\nEste ajuste ha sido registrado en el historial.`);
+      
+      // Recargar datos para actualizar la UI
+      await loadInitialData();
+      
+      setCurrentScreen('scan');
+      setScannedProduct(null);
+      
+    } catch (error) {
+      console.error('Error reseteando inventario:', error);
+      setError(`Error al resetear inventario: ${error.message}`);
+      
+      // En caso de error, permitir al usuario reintentar
+      const retry = window.confirm(`Error al resetear el inventario: ${error.message}\n\n¿Deseas reintentar?`);
+      if (retry) {
+        await handleResetInventory(barcode);
       }
     } finally {
       setLoading(false);
@@ -536,6 +583,7 @@ function App() {
               product={scannedProduct}
               onSaveCount={handleSaveCount}
               onBack={handleBack}
+              onResetInventory={handleResetInventory}
             />
           </div>
         ) : (

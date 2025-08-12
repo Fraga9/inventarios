@@ -1,9 +1,10 @@
 import { useState } from 'react';
 
-function ProductCountScreen({ product, onSaveCount, onBack }) {
+function ProductCountScreen({ product, onSaveCount, onBack, onResetInventory }) {
   const [count, setCount] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   const handleIncrement = () => {
     setCount(prev => prev + 1);
@@ -17,6 +18,21 @@ function ProductCountScreen({ product, onSaveCount, onBack }) {
     if (onSaveCount) {
       onSaveCount(product?.barcode, count);
     }
+  };
+
+  const handleResetClick = () => {
+    setShowResetModal(true);
+  };
+
+  const handleConfirmReset = () => {
+    if (onResetInventory) {
+      onResetInventory(product?.barcode);
+    }
+    setShowResetModal(false);
+  };
+
+  const handleCancelReset = () => {
+    setShowResetModal(false);
   };
 
   return (
@@ -46,10 +62,10 @@ function ProductCountScreen({ product, onSaveCount, onBack }) {
             
             <div className="flex-1 text-center sm:text-left">
               <h3 className="text-xl sm:text-2xl font-medium text-white/95 tracking-wide mb-1">
-                Contar Producto
+                Agregar al Inventario
               </h3>
               <p className="text-sm text-white/60 font-light leading-relaxed">
-                Verificación y registro preciso de inventario
+                Conteo ciego - Esta cantidad se sumará al inventario actual
               </p>
             </div>
           </div>
@@ -108,7 +124,7 @@ function ProductCountScreen({ product, onSaveCount, onBack }) {
                 <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-12 sm:w-16 h-1 bg-gradient-to-r from-transparent via-red-400/50 to-transparent rounded-full"></div>
               </div>
               <p className="text-white/60 text-sm sm:text-base font-light tracking-wide">
-                {count === 1 ? 'unidad contada' : 'unidades contadas'}
+                {count === 1 ? 'unidad a agregar' : 'unidades a agregar'}
               </p>
             </div>
 
@@ -183,6 +199,21 @@ function ProductCountScreen({ product, onSaveCount, onBack }) {
                 </button>
               ))}
             </div>
+
+            {/* Botón de reseteo */}
+            <div className="flex justify-center mb-6 sm:mb-8">
+              <button
+                onClick={handleResetClick}
+                className="group relative px-6 py-3 sm:px-8 sm:py-4 bg-yellow-500/10 border border-yellow-400/30 rounded-xl sm:rounded-2xl text-yellow-300 hover:text-yellow-200 hover:bg-yellow-500/20 hover:border-yellow-400/50 transition-all duration-300 ease-out font-medium text-sm sm:text-base active:scale-95 hover:shadow-lg hover:shadow-yellow-500/20 before:absolute before:inset-0 before:rounded-xl sm:before:rounded-2xl before:bg-gradient-to-r before:from-yellow-400/20 before:via-yellow-400/10 before:to-transparent before:translate-x-[-100%] before:transition-transform before:duration-500 hover:before:translate-x-[100%]"
+              >
+                <div className="relative z-10 flex items-center space-x-2 sm:space-x-3">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  <span>Resetear Inventario</span>
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Botones de acción responsive */}
@@ -207,7 +238,7 @@ function ProductCountScreen({ product, onSaveCount, onBack }) {
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                 </svg>
-                <span>Guardar Conteo</span>
+                <span>Agregar al Inventario</span>
               </div>
             </button>
           </div>
@@ -225,6 +256,67 @@ function ProductCountScreen({ product, onSaveCount, onBack }) {
           <div className="absolute bottom-1/3 left-1/3 w-1.5 h-1.5 bg-gray-400/20 rounded-full animate-float" style={{animationDelay: '1s'}}></div>
         </div>
       </div>
+
+      {/* Modal de confirmación de reseteo */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md mx-auto overflow-hidden rounded-2xl sm:rounded-3xl backdrop-blur-xl border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-white/[0.02] shadow-2xl shadow-black/20 animate-slide-in-up">
+            {/* Header del modal */}
+            <div className="relative z-10 p-6 sm:p-8">
+              <div className="flex items-center space-x-4 mb-6">
+                <div className="p-3 rounded-2xl bg-yellow-500/20 border border-yellow-400/30 backdrop-blur-sm">
+                  <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                </div>
+                
+                <div className="flex-1">
+                  <h3 className="text-xl font-medium text-white/95 tracking-wide mb-1">
+                    Confirmar Reseteo
+                  </h3>
+                  <p className="text-sm text-white/60 font-light">
+                    Esta acción no se puede deshacer
+                  </p>
+                </div>
+              </div>
+
+              {/* Contenido del modal */}
+              <div className="mb-8 p-4 rounded-2xl bg-gradient-to-r from-white/[0.08] to-white/[0.04] border border-white/15 backdrop-blur-sm">
+                <p className="text-white/80 text-sm sm:text-base leading-relaxed mb-3">
+                  ¿Estás seguro de que deseas resetear el inventario de este producto a <strong className="text-yellow-300">0 unidades</strong>?
+                </p>
+                {product && (
+                  <div className="text-center p-3 bg-white/5 rounded-xl border border-white/10">
+                    <p className="font-semibold text-white/95 mb-1">{product.name}</p>
+                    <p className="text-xs text-white/60">{product.barcode}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Botones del modal */}
+              <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+                <button 
+                  onClick={handleCancelReset}
+                  className="group relative flex-1 overflow-hidden rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:border-white/30 text-white/80 hover:text-white transition-all duration-300 ease-out font-medium text-sm py-3 px-6 active:scale-[0.98]"
+                >
+                  <span className="relative z-10">Cancelar</span>
+                </button>
+                
+                <button 
+                  onClick={handleConfirmReset}
+                  className="group relative flex-1 overflow-hidden rounded-xl border border-yellow-400/30 bg-yellow-500/20 backdrop-blur-sm hover:bg-yellow-500/30 hover:border-yellow-400/50 text-yellow-100 hover:text-white transition-all duration-300 ease-out font-medium text-sm py-3 px-6 active:scale-[0.98] hover:shadow-lg hover:shadow-yellow-500/20"
+                >
+                  <span className="relative z-10">Sí, Resetear</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Efectos de fondo del modal */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-yellow-500/8 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-radial from-white/5 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

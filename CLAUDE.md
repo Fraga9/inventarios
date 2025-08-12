@@ -16,45 +16,56 @@ This is a React inventory management application for "Promexma Control Interno" 
 ### Core Application Structure
 
 **Main App (`src/App.jsx`)**: 
-- Central state management with `useState` for scanned items, current screen, and product data
-- Contains hardcoded product database for simulation
-- Handles barcode scanning workflow and navigation between screens
+- Central state management with `useState` for current screen, scanned product, and authentication state
+- Mobile-responsive header with navigation and user profile display
+- Handles barcode scanning workflow and navigation between screens 
 - Uses a glassmorphism design with corporate red (#DA2C27) color scheme
+- Global error handling and loading states with overlay spinner
 
 **Screen Management**:
-- `home`: Main dashboard with scanning interface and inventory history
+- `scan`: Barcode scanning interface (default screen)
+- `history`: Movement history display
+- `inventory`: Current inventory status
 - `productCount`: Product counting screen triggered after barcode scan
 - `admin`: Admin dashboard for multi-sucursal analytics (admin users only)
+- `reports`: Excel report generation screen
 
 **Key Components**:
 
-1. **BarcodeCard** (`src/components/Card/BarcodeCard.jsx`):
+1. **Authentication Components** (`src/components/Auth/`):
+   - Login component with email/password authentication via Supabase Auth
+   - Register component with sucursal selection and user profile creation
+   - Error handling, loading states, and responsive glassmorphism design
+   - Integration with AuthContext for global state management
+
+2. **BarcodeCard** (`src/components/Card/BarcodeCard.jsx`):
    - Camera-based barcode scanning using QuaggaJS library
    - Loads QuaggaJS dynamically from CDN
    - Includes simulation mode for development
    - Handles camera permissions and error states
 
-2. **ProductCountScreen** (`src/components/ProductCountScreen/ProductCountScreen.jsx`):
+3. **ProductCountScreen** (`src/components/ProductCountScreen/ProductCountScreen.jsx`):
    - Product quantity input interface with increment/decrement controls
    - Quick increment buttons (+5, +10, +25, +50)
    - Responsive design for mobile and desktop
+   - Integrates with InventoryService for saving counts
 
-3. **Card** (`src/components/Card/Card.jsx`):
-   - Reusable glassmorphism card component with three variants: `default`, `primary`, `secondary`
-   - Supports icons, titles, children content, and action buttons
-   - Consistent styling and hover effects
-
-4. **Login/Register** (`src/components/Auth/`):
-   - Login component with email/password authentication
-   - Register component with sucursal selection
-   - Error handling and loading states
-   - Responsive glassmorphism design
+4. **Inventory Screens**:
+   - **ScanInventoryScreen**: Main barcode scanning interface with camera integration
+   - **MovementHistoryScreen**: Displays recent inventory movements with filtering
+   - **CurrentInventoryScreen**: Shows current stock levels by product
+   - **ExcelReportScreen**: Generates and exports Excel reports
 
 5. **AdminDashboard** (`src/components/Admin/AdminDashboard.jsx`):
    - Multi-sucursal analytics and statistics
-   - User management with role updates
+   - User management with role updates (admin/sucursal)
    - Global inventory overview with filtering
    - Admin-only access with role verification
+
+6. **Card Components** (`src/components/Card/`):
+   - **Card**: Reusable glassmorphism card component with variants (`default`, `primary`, `secondary`)
+   - **InventoryCard**: Specialized card for displaying inventory statistics
+   - Consistent styling, hover effects, and responsive design
 
 ### Styling System
 
@@ -74,10 +85,16 @@ This is a React inventory management application for "Promexma Control Interno" 
 
 ### Data Flow
 
-1. **Product Database**: Products stored in Supabase `productos` table, queried by barcode via InventoryService
-2. **Barcode Scanning**: BarcodeCard → App.handleBarcodeScanning → InventoryService.findProductByBarcode → sets scannedProduct
-3. **Product Counting**: ProductCountScreen → App.handleSaveCount → InventoryService.registerMovement → updates database and UI
-4. **State Management**: Local state with useState, recent movements loaded from database via InventoryService.getRecentMovements
+1. **Authentication Flow**: 
+   - AuthContext manages global auth state with Supabase Auth
+   - AuthService handles login/logout, profile management, and user role validation
+   - Profile data loaded from `users` table with sucursal relationship
+
+2. **Product Database**: Products stored in Supabase `productos` table, queried by barcode via InventoryService
+3. **Barcode Scanning**: BarcodeCard → App.handleBarcodeScanning → InventoryService.findProductByBarcode → sets scannedProduct
+4. **Product Counting**: ProductCountScreen → App.handleSaveCount → InventoryService.registerMovement → updates database and UI
+5. **State Management**: Local state with useState, recent movements loaded from database via InventoryService.getRecentMovements
+6. **Access Control**: All data operations enforce sucursal-based access control via RLS policies
 
 ### Authentication System
 
@@ -108,13 +125,25 @@ This is a React inventory management application for "Promexma Control Interno" 
 
 ### Database Integration
 
-**Service Layer** (`src/services/inventoryService.js`):
+**Service Layer**:
+
+**InventoryService** (`src/services/inventoryService.js`):
 - `findProductByBarcode()`: Searches productos table by codigo_mrp or codigo_truper
 - `registerMovement()`: Records movement and updates inventory in a transaction (requires user and sucursal)
 - `getCurrentInventory()`: Gets current stock for a product/sucursal (requires sucursal ID)
 - `getRecentMovements()`: Fetches recent movements with product info (requires sucursal ID)
 - `getInventoryStats()`: Calculates inventory statistics (requires sucursal ID)
-- All methods now enforce sucursal-based access control
+- `formatProductForUI()`: Formats product data for UI display
+- `diagnoseSupabaseConnection()`: Diagnostic tool for database connectivity
+- All methods enforce sucursal-based access control
+
+**AuthService** (`src/services/authService.js`):
+- `signIn()`, `signUp()`, `signOut()`: Core authentication methods
+- `getUserProfile()`, `updateUserProfile()`: Extended user data management
+- `getSucursales()`: Branch selection for registration
+- `getAllUsers()`, `updateUserRole()`: Admin user management functions
+- `onAuthStateChange()`: Real-time auth state monitoring
+- `resetPassword()`, `updatePassword()`: Password management
 
 **Database Tables**:
 - `users`: Extended user profiles with sucursal assignment and roles
@@ -133,15 +162,15 @@ This is a React inventory management application for "Promexma Control Interno" 
 
 ### Development Notes
 
-- Uses QuaggaJS for barcode scanning (loaded via CDN)
-- Includes fallback simulation mode when QuaggaJS unavailable
-- Mobile-responsive with touch-friendly controls
-- Camera access requires HTTPS in production
-- ESLint configured for React with hooks and refresh plugins
-- No TypeScript - uses plain JavaScript with JSX
-- Async/await pattern for all database operations
-- Global error handling with toast notifications
-- Loading states with overlay spinner
+- **Technology Stack**: React 19, Vite 7, Tailwind CSS 4, Supabase client
+- **Authentication**: Full Supabase Auth integration with session persistence
+- **Barcode Scanning**: QuaggaJS library loaded dynamically from CDN
+- **Database**: Supabase with Row Level Security (RLS) policies
+- **Styling**: Custom glassmorphism design system with Tailwind extensions
+- **Mobile Support**: Responsive design with touch-friendly controls and mobile navigation
+- **Code Style**: Plain JavaScript with JSX (no TypeScript), ESLint configured for React
+- **Error Handling**: Global error boundaries and consistent async/await patterns
+- **Security**: Camera access requires HTTPS in production, RLS enforces data isolation
 
 ### Security & Access Control
 
@@ -154,7 +183,26 @@ This is a React inventory management application for "Promexma Control Interno" 
 
 ### Setup Requirements
 
-1. **Database Setup**: Run `/database/users_setup.sql` to create user tables and RLS policies
-2. **Environment Variables**: Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+1. **Environment Variables**: Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` file
+2. **Database Setup**: 
+   - Run database migrations for users, productos, inventarios, movimientos, sucursales tables
+   - Configure RLS policies for data access control
+   - Populate sucursales table with branch information
 3. **Initial Admin**: Create first admin user manually in Supabase Auth, then update role in users table
-4. **Sucursales Data**: Populate sucursales table with branch information
+4. **Product Data**: Import product catalog with MRP/Truper codes for barcode scanning
+5. **HTTPS**: Required for camera access in production environments
+
+### Project Structure
+
+```
+src/
+├── components/
+│   ├── Admin/           # Admin dashboard and user management
+│   ├── Auth/           # Login and registration components
+│   ├── Card/           # Reusable card components including barcode scanner
+│   ├── Inventory/      # Inventory screens (scan, history, current, reports)
+│   └── ProductCountScreen/ # Product counting interface
+├── contexts/           # React contexts (AuthContext)
+├── services/          # Business logic services (auth, inventory)
+└── config/           # Supabase configuration
+```
