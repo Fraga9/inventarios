@@ -145,6 +145,13 @@ This is a React inventory management application for "Promexma Control Interno" 
 - `onAuthStateChange()`: Real-time auth state monitoring
 - `resetPassword()`, `updatePassword()`: Password management
 
+**AdminService** (`src/services/adminService.js`):
+- `getSucursalesWithMetrics()`: Retrieves all branches with comprehensive statistics
+- `getGlobalMetrics()`: Aggregated metrics across all sucursales for admin dashboard
+- `getSucursalMetrics()`: Detailed metrics for a specific sucursal
+- `resetSucursalInventory()`: Administrative inventory reset functionality
+- Advanced analytics and reporting functions for multi-sucursal management
+
 **Database Tables**:
 - `users`: Extended user profiles with sucursal assignment and roles
 - `productos`: Product catalog with MRP/Truper codes
