@@ -5,6 +5,7 @@ import { supabase, APP_CONFIG } from '../config/supabase.js';
  */
 export class InventoryService {
   
+
   /**
    * Diagnóstico completo de la conexión a Supabase
    * @returns {Promise<Object>} - Resultado del diagnóstico
@@ -550,4 +551,5 @@ export class InventoryService {
       };
     }
   }
+
 }
