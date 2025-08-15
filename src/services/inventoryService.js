@@ -552,4 +552,244 @@ export class InventoryService {
     }
   }
 
+  /**
+   * Guardar reporte mensual y resetear inventario de la sucursal
+   * @param {Object} reportData - Datos del reporte
+   * @returns {Promise<Object>} - Resultado de la operación
+   */
+  static async saveMonthlyReportAndReset(reportData) {
+    try {
+      const {
+        sucursalId,
+        reporteData,
+        usuario,
+        archivoUrl = null
+      } = reportData;
+
+      if (!sucursalId) {
+        throw new Error('ID de sucursal es requerido');
+      }
+      
+      if (!usuario) {
+        throw new Error('Usuario es requerido');
+      }
+
+      if (!reporteData || reporteData.length === 0) {
+        throw new Error('Datos del reporte son requeridos');
+      }
+
+      console.log('🔄 Iniciando guardado de reporte mensual y reseteo...');
+
+      const ahora = new Date();
+      const mes = ahora.getMonth() + 1; // JavaScript months are 0-indexed
+      const año = ahora.getFullYear();
+
+      // 1. Verificar si ya existe un reporte para este mes y año
+      const { data: existingReport, error: checkError } = await supabase
+        .from('reportes_mensuales')
+        .select('id')
+        .eq('sucursal_id', sucursalId)
+        .eq('mes', mes)
+        .eq('año', año)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      if (existingReport) {
+        throw new Error(`Ya existe un reporte para ${mes}/${año}. No se puede crear otro reporte para el mismo período.`);
+      }
+
+      // 2. Crear registro del reporte mensual
+      const reporteRecord = {
+        mes,
+        año,
+        sucursal_id: sucursalId,
+        archivo_url: archivoUrl,
+        datos_reporte: reporteData, // Guardar los datos del reporte como JSON
+        usuario_creacion: usuario,
+        total_productos: reporteData.length,
+        total_diferencias: reporteData.reduce((sum, item) => sum + Math.abs(item.difference), 0)
+      };
+
+      const { data: savedReport, error: saveError } = await supabase
+        .from('reportes_mensuales')
+        .insert(reporteRecord)
+        .select()
+        .single();
+
+      if (saveError) {
+        throw saveError;
+      }
+
+      console.log('✅ Reporte mensual guardado:', savedReport);
+
+      // 3. Obtener todos los productos del inventario de la sucursal
+      const { data: inventoryItems, error: inventoryError } = await supabase
+        .from('inventarios')
+        .select('id_inventario, id_producto, cantidad_actual')
+        .eq('id_sucursal', sucursalId);
+
+      if (inventoryError) {
+        throw inventoryError;
+      }
+
+      console.log(`🔄 Preparando reseteo de ${inventoryItems?.length || 0} productos...`);
+
+      // 4. Crear movimientos de reseteo para cada producto con inventario > 0
+      const movimientosReset = [];
+      const productosParaReset = inventoryItems?.filter(item => item.cantidad_actual > 0) || [];
+
+      for (const item of productosParaReset) {
+        movimientosReset.push({
+          id_sucursal: sucursalId,
+          id_producto: item.id_producto,
+          cantidad_anterior: item.cantidad_actual,
+          cantidad_nueva: 0,
+          tipo_movimiento: 'ajuste',
+          usuario: usuario,
+          observaciones: `Reseteo mensual - Reporte ${mes}/${año} - ID: ${savedReport.id}`
+        });
+      }
+
+      // 5. Insertar movimientos de reseteo en lotes
+      if (movimientosReset.length > 0) {
+        const { error: movimientosError } = await supabase
+          .from('movimientos')
+          .insert(movimientosReset);
+
+        if (movimientosError) {
+          throw movimientosError;
+        }
+
+        console.log(`✅ ${movimientosReset.length} movimientos de reseteo registrados`);
+      }
+
+      // 6. Resetear todas las cantidades a 0
+      const { error: resetError } = await supabase
+        .from('inventarios')
+        .update({ 
+          cantidad_actual: 0,
+          ultimo_conteo: ahora.toISOString(),
+          fecha_actualizacion: ahora.toISOString()
+        })
+        .eq('id_sucursal', sucursalId);
+
+      if (resetError) {
+        throw resetError;
+      }
+
+      console.log('✅ Inventario reseteado completamente');
+
+      return {
+        success: true,
+        reporte: savedReport,
+        productosReseteados: productosParaReset.length,
+        movimientosCreados: movimientosReset.length,
+        mes,
+        año
+      };
+
+    } catch (error) {
+      console.error('❌ Error guardando reporte mensual y reseteando:', error);
+      throw new Error(`Error al guardar reporte mensual: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtener historial de reportes mensuales de una sucursal
+   * @param {number} sucursalId - ID de la sucursal
+   * @returns {Promise<Array>} - Lista de reportes mensuales
+   */
+  static async getMonthlyReports(sucursalId) {
+    try {
+      if (!sucursalId) {
+        throw new Error('ID de sucursal es requerido');
+      }
+
+      const { data, error } = await supabase
+        .from('reportes_mensuales')
+        .select('*')
+        .eq('sucursal_id', sucursalId)
+        .order('año', { ascending: false })
+        .order('mes', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log(`📊 Reportes mensuales encontrados: ${data?.length || 0}`);
+      return data || [];
+
+    } catch (error) {
+      console.error('Error obteniendo reportes mensuales:', error);
+      throw new Error(`Error al obtener reportes mensuales: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtener todos los reportes mensuales (para administradores)
+   * @returns {Promise<Array>} - Lista de todos los reportes mensuales
+   */
+  static async getAllMonthlyReports() {
+    try {
+      const { data, error } = await supabase
+        .from('reportes_mensuales')
+        .select(`
+          *,
+          sucursales (
+            Sucursal
+          )
+        `)
+        .order('año', { ascending: false })
+        .order('mes', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log(`📊 Todos los reportes mensuales encontrados: ${data?.length || 0}`);
+      return data || [];
+
+    } catch (error) {
+      console.error('Error obteniendo todos los reportes mensuales:', error);
+      throw new Error(`Error al obtener reportes mensuales: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtener datos detallados de un reporte mensual específico
+   * @param {number} reporteId - ID del reporte
+   * @returns {Promise<Object>} - Datos del reporte
+   */
+  static async getMonthlyReportDetails(reporteId) {
+    try {
+      if (!reporteId) {
+        throw new Error('ID de reporte es requerido');
+      }
+
+      const { data, error } = await supabase
+        .from('reportes_mensuales')
+        .select(`
+          *,
+          sucursales (
+            Sucursal
+          )
+        `)
+        .eq('id', reporteId)
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error('Error obteniendo detalles del reporte:', error);
+      throw new Error(`Error al obtener detalles del reporte: ${error.message}`);
+    }
+  }
+
 }

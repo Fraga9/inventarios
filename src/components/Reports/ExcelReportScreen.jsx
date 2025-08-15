@@ -1,16 +1,120 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../../config/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { InventoryService } from '../../services/inventoryService';
 
 function ExcelReportScreen() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, user } = useAuth();
   const [uploadedData, setUploadedData] = useState(null);
   const [processedData, setProcessedData] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [monthlyReports, setMonthlyReports] = useState([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [showHistorial, setShowHistorial] = useState(false);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
+  const [showDataModal, setShowDataModal] = useState(false);
+  const [selectedReportData, setSelectedReportData] = useState(null);
+  const [loadingReportData, setLoadingReportData] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Cargar historial de reportes al montar el componente
+  useEffect(() => {
+    if (profile?.id_sucursal) {
+      loadMonthlyReports();
+    }
+  }, [profile?.id_sucursal, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadMonthlyReports = async () => {
+    try {
+      setLoadingHistorial(true);
+      let reports;
+      
+      if (isAdmin) {
+        reports = await InventoryService.getAllMonthlyReports();
+      } else {
+        reports = await InventoryService.getMonthlyReports(profile.id_sucursal);
+      }
+      
+      setMonthlyReports(reports);
+    } catch (error) {
+      console.error('Error loading monthly reports:', error);
+      setError(`Error al cargar historial: ${error.message}`);
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  const handleSaveMonthlyReport = async () => {
+    if (!processedData || processedData.length === 0) {
+      setError('No hay datos procesados para guardar');
+      return;
+    }
+
+    if (!profile?.id_sucursal) {
+      setError('No se puede identificar la sucursal');
+      return;
+    }
+
+    try {
+      setIsSavingReport(true);
+      setError(null);
+
+      const reportData = {
+        sucursalId: profile.id_sucursal,
+        reporteData: processedData,
+        usuario: user?.email || 'Usuario desconocido'
+      };
+
+      const result = await InventoryService.saveMonthlyReportAndReset(reportData);
+
+      console.log('✅ Reporte guardado y inventario reseteado:', result);
+      
+      // Limpiar datos actuales
+      setProcessedData([]);
+      setUploadedData(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+
+      // Recargar historial
+      await loadMonthlyReports();
+
+      setShowConfirmModal(false);
+      alert(`Reporte mensual guardado exitosamente para ${result.mes}/${result.año}. ${result.productosReseteados} productos reseteados.`);
+
+    } catch (error) {
+      console.error('Error saving monthly report:', error);
+      setError(`Error al guardar reporte mensual: ${error.message}`);
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
+  const handleViewReportData = async (reportId) => {
+    try {
+      setLoadingReportData(true);
+      setShowDataModal(true);
+      
+      const reportDetails = await InventoryService.getMonthlyReportDetails(reportId);
+      setSelectedReportData(reportDetails);
+      
+    } catch (error) {
+      console.error('Error loading report data:', error);
+      setError(`Error al cargar datos del reporte: ${error.message}`);
+      setShowDataModal(false);
+    } finally {
+      setLoadingReportData(false);
+    }
+  };
+
+  const handleCloseDataModal = () => {
+    setShowDataModal(false);
+    setSelectedReportData(null);
+  };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -172,7 +276,7 @@ function ExcelReportScreen() {
 
       // Load all inventory data at once for optimal performance
       console.log('🚀 Optimizando: Cargando todo el inventario de una vez...');
-      const { productMap, inventoryMap } = await loadAllInventoryData();
+      const { inventoryMap } = await loadAllInventoryData();
       
       // Process data with fast in-memory lookup
       const processed = [];
@@ -328,6 +432,100 @@ function ExcelReportScreen() {
           </div>
         </div>
       </div>
+
+      {/* Historial Toggle Button */}
+      <div className="mb-8 text-center">
+        <button
+          onClick={() => setShowHistorial(!showHistorial)}
+          className="px-6 py-3 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 rounded-xl text-blue-200 hover:text-blue-100 font-medium transition-colors flex items-center space-x-2 mx-auto"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{showHistorial ? 'Ocultar Historial' : 'Ver Historial de Reportes'}</span>
+        </button>
+      </div>
+
+      {/* Historial Section */}
+      {showHistorial && (
+        <div className="mb-8 bg-white/[0.06] border border-white/[0.12] rounded-2xl backdrop-blur-xl overflow-hidden">
+          <div className="p-6 border-b border-white/10">
+            <h3 className="text-xl font-medium text-white/95 mb-4">
+              Historial de Reportes Mensuales
+            </h3>
+            
+            {loadingHistorial ? (
+              <div className="text-center py-8">
+                <div className="w-8 h-8 border-3 border-blue-400/30 rounded-full animate-spin mx-auto mb-4">
+                  <div className="w-8 h-8 border-3 border-transparent border-t-blue-400 rounded-full"></div>
+                </div>
+                <p className="text-white/60">Cargando historial...</p>
+              </div>
+            ) : monthlyReports.length === 0 ? (
+              <div className="text-center py-8">
+                <svg className="w-12 h-12 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3-7.5H21m-3.75 0V10.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 10.5v7.5a2.25 2.25 0 002.25 2.25H17.25a2.25 2.25 0 002.25-2.25V13.5zm0 0V9a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 9v4.5z" />
+                </svg>
+                <p className="text-white/60">No hay reportes mensuales guardados</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-white/[0.03] border-b border-white/10">
+                      <th className="px-4 py-3 text-left text-sm font-medium text-white/80">Período</th>
+                      {isAdmin && <th className="px-4 py-3 text-left text-sm font-medium text-white/80">Sucursal</th>}
+                      <th className="px-4 py-3 text-right text-sm font-medium text-white/80">Productos</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium text-white/80">Diferencias</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-white/80">Usuario</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-white/80">Fecha</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-white/80">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyReports.map((report) => (
+                      <tr key={report.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-white/90">
+                          {String(report.mes).padStart(2, '0')}/{report.año}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-sm text-white/70">
+                            {report.sucursales?.Sucursal || 'N/A'}
+                          </td>
+                        )}
+                        <td className="px-4 py-3 text-sm text-right text-white/80">
+                          {report.total_productos || 0}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right text-white/80">
+                          {report.total_diferencias || 0}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-white/70">
+                          {report.usuario_creacion}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-white/70">
+                          {new Date(report.fecha_creacion).toLocaleDateString('es-MX')}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => handleViewReportData(report.id)}
+                            className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 rounded-lg text-blue-200 hover:text-blue-100 text-xs font-medium transition-colors flex items-center space-x-1 mx-auto"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>Ver Datos</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Upload Section */}
       <div 
@@ -488,15 +686,28 @@ function ExcelReportScreen() {
               <h3 className="text-xl font-medium text-white/95">
                 Reporte de Comparación
               </h3>
-              <button
-                onClick={handleExportResults}
-                className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-400/30 rounded-xl text-green-200 hover:text-green-100 font-medium transition-colors flex items-center space-x-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
-                <span>Exportar Excel</span>
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleExportResults}
+                  className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-400/30 rounded-xl text-green-200 hover:text-green-100 font-medium transition-colors flex items-center space-x-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  <span>Exportar Excel</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowConfirmModal(true)}
+                  disabled={isSavingReport}
+                  className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 rounded-xl text-red-200 hover:text-red-100 font-medium transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3-7.5H21m-3.75 0V10.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 10.5v7.5a2.25 2.25 0 002.25 2.25H17.25a2.25 2.25 0 002.25-2.25V13.5zm0 0V9a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 9v4.5z" />
+                  </svg>
+                  <span>{isSavingReport ? 'Guardando...' : 'Guardar Reporte Mensual'}</span>
+                </button>
+              </div>
             </div>
           </div>
           
@@ -514,7 +725,7 @@ function ExcelReportScreen() {
                 </tr>
               </thead>
               <tbody>
-                {processedData.map((item, index) => (
+                {processedData.map((item) => (
                   <tr key={item.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-3 text-sm font-medium text-white/90">{item.material}</td>
                     <td className="px-4 py-3 text-sm text-white/70">{item.description}</td>
@@ -542,6 +753,222 @@ function ExcelReportScreen() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-white/20 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-500/20 border border-red-400/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              
+              <h3 className="text-xl font-semibold text-white mb-2">
+                Confirmar Guardado de Reporte Mensual
+              </h3>
+              
+              <p className="text-white/70 mb-4">
+                Esta acción guardará el reporte como "Informe del mes actual" y <strong className="text-red-400">reseteará a CERO todas las cantidades</strong> del inventario de tu sucursal.
+              </p>
+              
+              <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-xl p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <svg className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div className="text-left">
+                    <p className="text-sm text-yellow-200 font-medium mb-1">¡Atención!</p>
+                    <p className="text-xs text-yellow-300">
+                      • Se creará un registro permanente del reporte<br/>
+                      • Todos los productos volverán a cantidad 0<br/>
+                      • Esta acción NO se puede deshacer<br/>
+                      • Solo se permite un reporte por mes
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isSavingReport}
+                className="flex-1 px-4 py-3 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/30 rounded-xl text-gray-200 hover:text-gray-100 font-medium transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              
+              <button
+                onClick={handleSaveMonthlyReport}
+                disabled={isSavingReport}
+                className="flex-1 px-4 py-3 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 rounded-xl text-red-200 hover:text-red-100 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                {isSavingReport ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-red-400/30 rounded-full animate-spin">
+                      <div className="w-4 h-4 border-2 border-transparent border-t-red-400 rounded-full"></div>
+                    </div>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    <span>Confirmar y Guardar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Datos del Reporte */}
+      {showDataModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-white/20 rounded-2xl max-w-6xl w-full max-h-[90vh] mx-4 shadow-2xl flex flex-col">
+            {/* Header del modal */}
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-white mb-1">
+                  Datos del Reporte Mensual
+                </h3>
+                {selectedReportData && (
+                  <p className="text-white/60 text-sm">
+                    {String(selectedReportData.mes).padStart(2, '0')}/{selectedReportData.año} 
+                    {selectedReportData.sucursales?.Sucursal && ` - ${selectedReportData.sucursales.Sucursal}`}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={handleCloseDataModal}
+                className="p-2 rounded-lg bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/30 text-gray-300 hover:text-gray-100 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Contenido del modal */}
+            <div className="flex-1 overflow-hidden">
+              {loadingReportData ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="w-8 h-8 border-3 border-blue-400/30 rounded-full animate-spin mx-auto mb-4">
+                      <div className="w-8 h-8 border-3 border-transparent border-t-blue-400 rounded-full"></div>
+                    </div>
+                    <p className="text-white/60">Cargando datos del reporte...</p>
+                  </div>
+                </div>
+              ) : selectedReportData && selectedReportData.datos_reporte ? (
+                <div className="p-6 overflow-auto h-full">
+                  {/* Resumen del reporte */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white/[0.06] border border-white/[0.12] rounded-xl p-4 text-center">
+                      <div className="text-2xl font-semibold text-white/95">{selectedReportData.total_productos}</div>
+                      <div className="text-xs text-white/60">Total Productos</div>
+                    </div>
+                    <div className="bg-green-500/[0.08] border border-green-400/[0.15] rounded-xl p-4 text-center">
+                      <div className="text-2xl font-semibold text-green-300">
+                        {selectedReportData.datos_reporte.filter(item => item.difference > 0).length}
+                      </div>
+                      <div className="text-xs text-white/60">Sobrantes</div>
+                    </div>
+                    <div className="bg-red-500/[0.08] border border-red-400/[0.15] rounded-xl p-4 text-center">
+                      <div className="text-2xl font-semibold text-red-300">
+                        {selectedReportData.datos_reporte.filter(item => item.difference < 0).length}
+                      </div>
+                      <div className="text-xs text-white/60">Faltantes</div>
+                    </div>
+                    <div className="bg-blue-500/[0.08] border border-blue-400/[0.15] rounded-xl p-4 text-center">
+                      <div className="text-2xl font-semibold text-blue-300">
+                        {selectedReportData.datos_reporte.filter(item => item.difference === 0).length}
+                      </div>
+                      <div className="text-xs text-white/60">Sin Diferencia</div>
+                    </div>
+                  </div>
+
+                  {/* Tabla de datos */}
+                  <div className="bg-white/[0.06] border border-white/[0.12] rounded-2xl overflow-hidden">
+                    <div className="p-4 border-b border-white/10">
+                      <h4 className="text-lg font-medium text-white/95">
+                        Detalle de Productos ({selectedReportData.datos_reporte.length} items)
+                      </h4>
+                    </div>
+                    
+                    <div className="overflow-x-auto max-h-96">
+                      <table className="w-full">
+                        <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm">
+                          <tr className="bg-white/[0.03] border-b border-white/10">
+                            <th className="px-4 py-3 text-left text-sm font-medium text-white/80">Código MRP</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-white/80">Descripción</th>
+                            <th className="px-4 py-3 text-right text-sm font-medium text-white/80">Sistema ERP</th>
+                            <th className="px-4 py-3 text-right text-sm font-medium text-white/80">App/Físico</th>
+                            <th className="px-4 py-3 text-right text-sm font-medium text-white/80">Diferencia</th>
+                            <th className="px-4 py-3 text-right text-sm font-medium text-white/80">Valor Unit.</th>
+                            <th className="px-4 py-3 text-right text-sm font-medium text-white/80">Dif. Costo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedReportData.datos_reporte.map((item, index) => (
+                            <tr key={index} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                              <td className="px-4 py-3 text-sm font-medium text-white/90">{item.material}</td>
+                              <td className="px-4 py-3 text-sm text-white/70">{item.description}</td>
+                              <td className="px-4 py-3 text-sm text-right text-white/80">{item.systemInventory}</td>
+                              <td className="px-4 py-3 text-sm text-right text-white/80">{item.physicalCount}</td>
+                              <td className={`px-4 py-3 text-sm text-right font-medium ${
+                                item.difference > 0 ? 'text-green-400' : 
+                                item.difference < 0 ? 'text-red-400' : 'text-white/60'
+                              }`}>
+                                {item.difference > 0 ? '+' : ''}{item.difference}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-right text-white/70">
+                                {item.unitValue > 0 ? `$${item.unitValue.toFixed(2)}` : '-'}
+                              </td>
+                              <td className={`px-4 py-3 text-sm text-right font-medium ${
+                                item.costDifference > 0 ? 'text-green-400' : 
+                                item.costDifference < 0 ? 'text-red-400' : 'text-white/60'
+                              }`}>
+                                {item.costDifference !== 0 ? 
+                                  `$${item.costDifference.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : 
+                                  '-'
+                                }
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <svg className="w-12 h-12 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    <p className="text-white/60">No hay datos disponibles para este reporte</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer del modal */}
+            <div className="p-4 border-t border-white/10 text-center">
+              <button
+                onClick={handleCloseDataModal}
+                className="px-6 py-2 bg-gray-600/20 hover:bg-gray-600/30 border border-gray-500/30 rounded-xl text-gray-200 hover:text-gray-100 font-medium transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
