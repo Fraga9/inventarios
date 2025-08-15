@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { InventoryService } from '../../services/inventoryService';
 import { useAuth } from '../../contexts/AuthContext';
 import Card from '../Card/Card';
 import * as XLSX from 'xlsx';
 
 export function MovementHistoryScreen() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, getEffectiveSucursalId, selectedSucursal } = useAuth();
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,38 +18,26 @@ export function MovementHistoryScreen() {
   
   const movementsPerPage = 20;
 
-  useEffect(() => {
-    if (profile?.id_sucursal || (profile?.role === 'admin' && !profile?.id_sucursal)) {
-      loadAllMovements();
-    } else if (profile && !profile.id_sucursal && profile.role !== 'admin') {
-      setError('Usuario sin sucursal asignada');
-      setLoading(false);
-    }
-  }, [profile]);
-  
-  // Separate effect for client-side filtering
-  useEffect(() => {
-    applyFilters();
-  }, [allMovements, filterType, dateRange, searchTerm, currentPage]);
-
-  const loadAllMovements = async () => {
+  const loadAllMovements = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!profile?.id_sucursal && profile?.role !== 'admin') {
+      const efectiveSucursalId = getEffectiveSucursalId();
+      
+      if (!efectiveSucursalId && profile?.role !== 'admin') {
         setError('Usuario sin sucursal asignada');
         return;
       }
 
-      if (profile?.role === 'admin' && !profile?.id_sucursal) {
+      if (profile?.role === 'admin' && !efectiveSucursalId) {
         setMovements([]);
         setTotalPages(1);
         return;
       }
 
       // Get all movements for client-side filtering
-      const fetchedMovements = await InventoryService.getRecentMovements(1000, profile.id_sucursal);
+      const fetchedMovements = await InventoryService.getRecentMovements(1000, efectiveSucursalId);
       setAllMovements(fetchedMovements);
     } catch (error) {
       console.error('Error cargando movimientos:', error);
@@ -57,9 +45,9 @@ export function MovementHistoryScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getEffectiveSucursalId, profile]);
   
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     if (!allMovements.length) {
       setMovements([]);
       setTotalPages(1);
@@ -146,7 +134,22 @@ export function MovementHistoryScreen() {
 
     setMovements(formattedMovements);
     setTotalPages(totalPagesCalculated);
-  };
+  }, [allMovements, filterType, dateRange, searchTerm, currentPage]);
+
+  useEffect(() => {
+    const efectiveSucursalId = getEffectiveSucursalId();
+    if (efectiveSucursalId || (profile?.role === 'admin' && !efectiveSucursalId)) {
+      loadAllMovements();
+    } else if (profile && !efectiveSucursalId && profile.role !== 'admin') {
+      setError('Usuario sin sucursal asignada');
+      setLoading(false);
+    }
+  }, [profile, selectedSucursal, getEffectiveSucursalId, loadAllMovements]);
+  
+  // Separate effect for client-side filtering
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const getMovementTypeColor = (type) => {
     switch (type) {

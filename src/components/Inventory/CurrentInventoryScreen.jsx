@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Card from '../Card/Card';
 
 export function CurrentInventoryScreen() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, getEffectiveSucursalId, selectedSucursal } = useAuth();
   const [inventoryItems, setInventoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,26 +22,19 @@ export function CurrentInventoryScreen() {
 
   const itemsPerPage = 50;
 
-  useEffect(() => {
-    if (profile?.id_sucursal || (profile?.role === 'admin' && !profile?.id_sucursal)) {
-      loadInventoryData();
-    } else if (profile && !profile.id_sucursal && profile.role !== 'admin') {
-      setError('Usuario sin sucursal asignada');
-      setLoading(false);
-    }
-  }, [profile]);
-
-  const loadInventoryData = async () => {
+  const loadInventoryData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!profile?.id_sucursal && profile?.role !== 'admin') {
+      const efectiveSucursalId = getEffectiveSucursalId();
+      
+      if (!efectiveSucursalId && profile?.role !== 'admin') {
         setError('Usuario sin sucursal asignada');
         return;
       }
 
-      if (profile?.role === 'admin' && !profile?.id_sucursal) {
+      if (profile?.role === 'admin' && !efectiveSucursalId) {
         setInventoryItems([]);
         setStats({ total: 0, lowStock: 0, outOfStock: 0, totalValue: 0 });
         return;
@@ -60,7 +53,7 @@ export function CurrentInventoryScreen() {
             descripcion
           )
         `)
-        .eq('id_sucursal', profile.id_sucursal)
+        .eq('id_sucursal', efectiveSucursalId)
         .order('ultimo_conteo', { ascending: false });
 
       if (fetchError) {
@@ -107,7 +100,17 @@ export function CurrentInventoryScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getEffectiveSucursalId, profile]);
+
+  useEffect(() => {
+    const efectiveSucursalId = getEffectiveSucursalId();
+    if (efectiveSucursalId || (profile?.role === 'admin' && !efectiveSucursalId)) {
+      loadInventoryData();
+    } else if (profile && !efectiveSucursalId && profile.role !== 'admin') {
+      setError('Usuario sin sucursal asignada');
+      setLoading(false);
+    }
+  }, [profile, selectedSucursal, getEffectiveSucursalId, loadInventoryData]);
 
   // Memoized filtering and sorting for performance with large datasets
   const filteredAndSortedItems = useMemo(() => {

@@ -9,6 +9,8 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedSucursal, setSelectedSucursal] = useState(null); // Sucursal seleccionada por admin
+  const [showSucursalModal, setShowSucursalModal] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -28,6 +30,11 @@ export function AuthProvider({ children }) {
           try {
             const userProfile = await AuthService.getUserProfile(currentSession.user.id);
             setProfile(userProfile);
+            
+            // Si es admin y no hay sucursal seleccionada, mostrar modal
+            if (userProfile?.role === 'admin' && !selectedSucursal) {
+              setShowSucursalModal(true);
+            }
           } catch (profileError) {
             console.error('Error loading user profile:', profileError);
             const fallbackProfile = {
@@ -58,6 +65,11 @@ export function AuthProvider({ children }) {
                 try {
                   const userProfile = await AuthService.getUserProfile(session.user.id);
                   setProfile(userProfile);
+                  
+                  // Si es admin y no hay sucursal seleccionada, mostrar modal
+                  if (userProfile?.role === 'admin' && !selectedSucursal) {
+                    setShowSucursalModal(true);
+                  }
                 } catch (profileError) {
                   console.error('Error loading profile on signin:', profileError);
                   setProfile({
@@ -75,6 +87,8 @@ export function AuthProvider({ children }) {
               setSession(null);
               setUser(null);
               setProfile(null);
+              setSelectedSucursal(null);
+              setShowSucursalModal(false);
               break;
               
             case 'TOKEN_REFRESHED':
@@ -126,6 +140,29 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     await AuthService.signOut();
+    setSelectedSucursal(null);
+    setShowSucursalModal(false);
+  };
+
+  const selectSucursal = (sucursal) => {
+    setSelectedSucursal(sucursal);
+    setShowSucursalModal(false);
+  };
+
+  const openSucursalModal = () => {
+    setShowSucursalModal(true);
+  };
+
+  const closeSucursalModal = () => {
+    setShowSucursalModal(false);
+  };
+
+  // Función helper para obtener el ID de sucursal efectivo
+  const getEffectiveSucursalId = () => {
+    if (profile?.role === 'admin') {
+      return selectedSucursal?.id_sucursal || null;
+    }
+    return profile?.id_sucursal || null;
   };
 
   const value = {
@@ -136,8 +173,14 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!session,
     isAdmin: profile?.role === 'admin',
     sucursal: profile?.sucursales,
+    selectedSucursal,
+    showSucursalModal,
+    getEffectiveSucursalId,
     login,
-    logout
+    logout,
+    selectSucursal,
+    openSucursalModal,
+    closeSucursalModal
   };
 
   return (

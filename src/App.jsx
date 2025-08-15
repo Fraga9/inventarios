@@ -1,11 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BarcodeCard, Card, InventoryCard, ProductCountScreen, ErrorBoundary, Login, Register, AdminDashboard, UserManagement, ScanInventoryScreen, MovementHistoryScreen, CurrentInventoryScreen, ExcelReportScreen } from './components';
+import SucursalSelectModal from './components/Admin/SucursalSelectModal';
 import { InventoryService } from './services/inventoryService';
 import { useAuth } from './contexts/AuthContext';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, user, profile, loading: authLoading, logout, isAdmin, sucursal } = useAuth();
+  const { 
+    isAuthenticated, 
+    user, 
+    profile, 
+    loading: authLoading, 
+    logout, 
+    isAdmin, 
+    sucursal,
+    showSucursalModal,
+    selectedSucursal,
+    selectSucursal,
+    closeSucursalModal,
+    openSucursalModal,
+    getEffectiveSucursalId
+  } = useAuth();
   const [scannedItems, setScannedItems] = useState([]);
   const [currentScreen, setCurrentScreen] = useState('scan'); // 'scan', 'history', 'inventory', 'productCount', 'admin', 'reports'
   const [scannedProduct, setScannedProduct] = useState(null);
@@ -15,27 +30,19 @@ function App() {
   const [showRegister, setShowRegister] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Cargar datos iniciales cuando el usuario esté autenticado
-  useEffect(() => {
-    if (isAuthenticated && profile) {
-      loadInitialData();
-    }
-  }, [isAuthenticated, profile]);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Para admin: cargar datos de todas las sucursales o saltar si no hay sucursales asignadas
-      if (isAdmin) {
-        // Admin users might not have initial data or could see a global view
+      // Obtener ID de sucursal efectivo (para admin puede ser la seleccionada, para usuarios normales la asignada)
+      const idSucursal = getEffectiveSucursalId();
+      
+      // Para admin: si no hay sucursal seleccionada, mostrar estado vacío
+      if (isAdmin && !idSucursal) {
         setScannedItems([]);
         setStats({ totalProductos: 0, totalUnidades: 0, precision: 100 });
         return;
       }
-
-      // Obtener ID de sucursal del usuario actual
-      const idSucursal = profile?.id_sucursal;
       
       if (!idSucursal) {
         throw new Error('Usuario sin sucursal asignada');
@@ -72,7 +79,16 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getEffectiveSucursalId, isAdmin]);
+
+  // Configurar InventoryService y cargar datos iniciales cuando el usuario esté autenticado o cambie la sucursal
+  useEffect(() => {
+    if (isAuthenticated && profile) {
+      // Configurar la función getEffectiveSucursalId en InventoryService
+      InventoryService.setGetEffectiveSucursalId(getEffectiveSucursalId);
+      loadInitialData();
+    }
+  }, [isAuthenticated, profile, getEffectiveSucursalId, selectedSucursal, loadInitialData]);
 
   const handleBarcodeScanning = async (scannedCode) => {
     try {
@@ -119,8 +135,8 @@ function App() {
         throw new Error('No se puede guardar el conteo: producto no identificado en el sistema');
       }
       
-      // Obtener ID de sucursal del usuario actual
-      const idSucursal = profile?.id_sucursal;
+      // Obtener ID de sucursal efectivo
+      const idSucursal = getEffectiveSucursalId();
       if (!idSucursal) {
         throw new Error('Usuario sin sucursal asignada');
       }
@@ -170,8 +186,8 @@ function App() {
         throw new Error('No se puede resetear: producto no identificado en el sistema');
       }
       
-      // Obtener ID de sucursal del usuario actual
-      const idSucursal = profile?.id_sucursal;
+      // Obtener ID de sucursal efectivo
+      const idSucursal = getEffectiveSucursalId();
       if (!idSucursal) {
         throw new Error('Usuario sin sucursal asignada');
       }
@@ -361,12 +377,36 @@ function App() {
                 <div className="text-right">
                   <p className="text-white/90 text-sm font-medium">{profile?.full_name}</p>
                   <p className="text-white/60 text-xs">
-                    {isAdmin ? 'Administrador' : sucursal?.Sucursal || 'Sin sucursal'}
+                    {isAdmin ? (
+                      <>
+                        Administrador
+                        {selectedSucursal && (
+                          <span className="block text-blue-300 mt-0.5">
+                            Gestionando: {selectedSucursal.Sucursal}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      sucursal?.Sucursal || 'Sin sucursal'
+                    )}
                   </p>
                   {sucursal?.Región && !isAdmin && (
                     <p className="text-white/50 text-xs">{sucursal.Región}</p>
                   )}
                 </div>
+                
+                {/* Botón Cambiar Sucursal - Solo para Admin */}
+                {isAdmin && (
+                  <button
+                    onClick={openSucursalModal}
+                    className="p-2 rounded-xl bg-blue-500/20 border border-blue-400/30 hover:bg-blue-500/30 transition-all"
+                    title="Cambiar sucursal"
+                  >
+                    <svg className="w-5 h-5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.905l3 1m-3-1v-6.5M6.75 7.364V3h-3Q2.25 1.5 4.5 3v4.364m0 0l1.5-.546" />
+                    </svg>
+                  </button>
+                )}
                 
                 {/* Logout Button - Desktop */}
                 <button
@@ -499,6 +539,24 @@ function App() {
                     </div>
                   </button>
 
+                  {/* Cambiar Sucursal Button - Mobile (Solo Admin) */}
+                  {isAdmin && (
+                    <button
+                      onClick={openSucursalModal}
+                      className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium bg-blue-500/10 text-blue-300 border border-blue-400/20 hover:bg-blue-500/20 transition-all"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.905l3 1m-3-1v-6.5M6.75 7.364V3h-3Q2.25 1.5 4.5 3v4.364m0 0l1.5-.546" />
+                        </svg>
+                        <span>Cambiar Sucursal</span>
+                        {selectedSucursal && (
+                          <span className="text-xs text-blue-200">({selectedSucursal.Sucursal})</span>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                
                   {/* Logout Button - Mobile */}
                   <div className="pt-2 mt-2 border-t border-white/10">
                     <button
@@ -591,6 +649,14 @@ function App() {
           <ScanInventoryScreen onScanBarcode={handleBarcodeScanning} />
         )}
       </main>
+
+      {/* Modal de Selección de Sucursal */}
+      <SucursalSelectModal
+        isOpen={showSucursalModal}
+        onClose={closeSucursalModal}
+        onSelect={selectSucursal}
+        allowClose={!!selectedSucursal} // Solo permite cerrar si ya hay una sucursal seleccionada
+      />
     </div>
   );
 }

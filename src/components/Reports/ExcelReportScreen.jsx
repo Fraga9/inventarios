@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { InventoryService } from '../../services/inventoryService';
 
 function ExcelReportScreen() {
-  const { profile, isAdmin, user } = useAuth();
+  const { profile, isAdmin, user, getEffectiveSucursalId, selectedSucursal } = useAuth();
   const [uploadedData, setUploadedData] = useState(null);
   const [processedData, setProcessedData] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -21,12 +21,13 @@ function ExcelReportScreen() {
   const [loadingReportData, setLoadingReportData] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Cargar historial de reportes al montar el componente
+  // Cargar historial de reportes al montar el componente y cuando cambie la sucursal
   useEffect(() => {
-    if (profile?.id_sucursal) {
+    const efectiveSucursalId = getEffectiveSucursalId();
+    if (efectiveSucursalId || isAdmin) {
       loadMonthlyReports();
     }
-  }, [profile?.id_sucursal, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profile, selectedSucursal, isAdmin, getEffectiveSucursalId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMonthlyReports = async () => {
     try {
@@ -36,7 +37,12 @@ function ExcelReportScreen() {
       if (isAdmin) {
         reports = await InventoryService.getAllMonthlyReports();
       } else {
-        reports = await InventoryService.getMonthlyReports(profile.id_sucursal);
+        const efectiveSucursalId = getEffectiveSucursalId();
+        if (efectiveSucursalId) {
+          reports = await InventoryService.getMonthlyReports(efectiveSucursalId);
+        } else {
+          reports = [];
+        }
       }
       
       setMonthlyReports(reports);
@@ -54,7 +60,8 @@ function ExcelReportScreen() {
       return;
     }
 
-    if (!profile?.id_sucursal) {
+    const efectiveSucursalId = getEffectiveSucursalId();
+    if (!efectiveSucursalId) {
       setError('No se puede identificar la sucursal');
       return;
     }
@@ -64,7 +71,7 @@ function ExcelReportScreen() {
       setError(null);
 
       const reportData = {
-        sucursalId: profile.id_sucursal,
+        sucursalId: efectiveSucursalId,
         reporteData: processedData,
         usuario: user?.email || 'Usuario desconocido'
       };
@@ -169,12 +176,10 @@ function ExcelReportScreen() {
   // Optimized function to load all inventory data at once
   const loadAllInventoryData = async () => {
     try {
-      if (!profile?.id_sucursal && !isAdmin) {
-        return { productMap: new Map(), inventoryMap: new Map() };
-      }
-
-      const idSucursal = profile?.id_sucursal;
-      if (!idSucursal) {
+      const efectiveSucursalId = getEffectiveSucursalId();
+      
+      if (!efectiveSucursalId) {
+        console.warn('⚠️ No hay sucursal efectiva seleccionada');
         return { productMap: new Map(), inventoryMap: new Map() };
       }
 
@@ -191,7 +196,7 @@ function ExcelReportScreen() {
             codigo_truper
           )
         `)
-        .eq('id_sucursal', idSucursal);
+        .eq('id_sucursal', efectiveSucursalId);
 
       if (inventoryError) {
         console.error('Error loading inventory:', inventoryError);
@@ -199,6 +204,16 @@ function ExcelReportScreen() {
       }
 
       console.log(`✅ Inventario cargado: ${inventoryData?.length || 0} productos`);
+      console.log(`🔍 Sucursal efectiva usada: ${efectiveSucursalId}`);
+
+      // Debug: mostrar algunos productos cargados
+      if (inventoryData && inventoryData.length > 0) {
+        console.log('🎯 Primeros productos cargados:', inventoryData.slice(0, 3).map(item => ({
+          codigo_mrp: item.productos?.codigo_mrp,
+          codigo_truper: item.productos?.codigo_truper,
+          cantidad: item.cantidad_actual
+        })));
+      }
 
       // Create lookup maps for O(1) access
       const productMap = new Map(); // materialCode -> product data
@@ -209,18 +224,26 @@ function ExcelReportScreen() {
         if (product) {
           // Map by MRP code
           if (product.codigo_mrp) {
-            productMap.set(product.codigo_mrp.trim(), product);
-            inventoryMap.set(product.codigo_mrp.trim(), item.cantidad_actual || 0);
+            const mrpCode = product.codigo_mrp.trim();
+            productMap.set(mrpCode, product);
+            inventoryMap.set(mrpCode, item.cantidad_actual || 0);
           }
           // Map by Truper code as fallback
           if (product.codigo_truper) {
-            productMap.set(product.codigo_truper.trim(), product);
-            inventoryMap.set(product.codigo_truper.trim(), item.cantidad_actual || 0);
+            const truperCode = product.codigo_truper.trim();
+            productMap.set(truperCode, product);
+            inventoryMap.set(truperCode, item.cantidad_actual || 0);
           }
         }
       });
 
       console.log(`📊 Maps created: ${productMap.size} product codes mapped`);
+      
+      // Debug: mostrar algunos códigos mapeados
+      if (productMap.size > 0) {
+        const sampleCodes = Array.from(productMap.keys()).slice(0, 5);
+        console.log('🔑 Códigos de ejemplo en el mapa:', sampleCodes);
+      }
       
       return { productMap, inventoryMap };
 
@@ -300,19 +323,20 @@ function ExcelReportScreen() {
         
         // Fast O(1) lookup for physical inventory
         const physicalCount = inventoryMap.get(materialCode) || 0;
+        const foundInDB = inventoryMap.has(materialCode);
         
         const difference = physicalCount - systemInventory;
         const costDifference = unitValue > 0 ? difference * unitValue : 0;
 
         // Debug log for first few items
         if (index < 3) {
-          console.log(`Row ${index + 1}:`, {
+          console.log(`Row ${index + 2}:`, {
             material: materialCode,
             systemInventory: systemInventory,
             physicalCount: physicalCount,
+            foundInDB: foundInDB,
             description: description,
-            difference: difference,
-            foundInDB: inventoryMap.has(materialCode)
+            difference: difference
           });
         }
 
@@ -330,9 +354,12 @@ function ExcelReportScreen() {
         });
       }
       
+      const foundInDB = processed.filter(p => inventoryMap.has(p.material)).length;
+      const notFoundInDB = processed.length - foundInDB;
+      
       console.log(`✅ Procesamiento completado: ${processed.length} productos procesados`);
-      console.log(`📊 Productos encontrados en BD: ${processed.filter(p => p.physicalCount > 0).length}`);
-      console.log(`⚠️ Productos no encontrados: ${processed.filter(p => p.physicalCount === 0).length}`);
+      console.log(`📊 Productos encontrados en BD: ${foundInDB}`);
+      console.log(`⚠️ Productos no encontrados: ${notFoundInDB}`);
 
       setProcessedData(processed);
       

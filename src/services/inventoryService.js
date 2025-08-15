@@ -5,6 +5,36 @@ import { supabase, APP_CONFIG } from '../config/supabase.js';
  */
 export class InventoryService {
   
+  // Función helper para obtener el ID de sucursal efectivo
+  // Esta función debe ser configurada desde el contexto de autenticación
+  static getEffectiveSucursalId = null;
+
+  /**
+   * Configura la función para obtener el ID de sucursal efectivo
+   * @param {Function} getEffectiveSucursalIdFn - Función que retorna el ID de sucursal
+   */
+  static setGetEffectiveSucursalId(getEffectiveSucursalIdFn) {
+    this.getEffectiveSucursalId = getEffectiveSucursalIdFn;
+  }
+
+  /**
+   * Obtiene el ID de sucursal a usar en las operaciones
+   * @param {number} explicitIdSucursal - ID de sucursal explícito (opcional)
+   * @returns {number} - ID de sucursal a usar
+   */
+  static getSucursalId(explicitIdSucursal) {
+    if (explicitIdSucursal) {
+      return explicitIdSucursal;
+    }
+    
+    if (this.getEffectiveSucursalId) {
+      return this.getEffectiveSucursalId();
+    }
+    
+    console.warn('No se ha configurado getEffectiveSucursalId ni se proporcionó ID explícito');
+    return null;
+  }
+  
 
   /**
    * Diagnóstico completo de la conexión a Supabase
@@ -191,11 +221,13 @@ export class InventoryService {
   /**
    * Obtener inventario actual de un producto en una sucursal
    * @param {number} idProducto - ID del producto
-   * @param {number} idSucursal - ID de la sucursal (opcional, usa default)
+   * @param {number} idSucursal - ID de la sucursal (opcional, usa sucursal efectiva)
    * @returns {Promise<Object|null>} - Registro de inventario o null
    */
   static async getCurrentInventory(idProducto, idSucursal) {
-    if (!idSucursal) {
+    const efectiveIdSucursal = this.getSucursalId(idSucursal);
+    
+    if (!efectiveIdSucursal) {
       throw new Error('ID de sucursal es requerido');
     }
     
@@ -204,7 +236,7 @@ export class InventoryService {
         .from('inventarios')
         .select('*')
         .eq('id_producto', idProducto)
-        .eq('id_sucursal', idSucursal)
+        .eq('id_sucursal', efectiveIdSucursal)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -235,7 +267,9 @@ export class InventoryService {
         idSucursal
       } = movementData;
 
-      if (!idSucursal) {
+      const efectiveIdSucursal = this.getSucursalId(idSucursal);
+      
+      if (!efectiveIdSucursal) {
         throw new Error('ID de sucursal es requerido');
       }
       
@@ -250,7 +284,7 @@ export class InventoryService {
       console.log('Registrando movimiento sumatorio:', movementData);
 
       // Obtener inventario actual
-      const inventarioActual = await this.getCurrentInventory(idProducto, idSucursal);
+      const inventarioActual = await this.getCurrentInventory(idProducto, efectiveIdSucursal);
       const cantidadAnterior = inventarioActual ? inventarioActual.cantidad_actual : 0;
       
       // Calcular nueva cantidad total (conteo ciego sumatorio)
@@ -258,7 +292,7 @@ export class InventoryService {
 
       // Preparar datos del movimiento
       const movimiento = {
-        id_sucursal: idSucursal,
+        id_sucursal: efectiveIdSucursal,
         id_producto: idProducto,
         cantidad_anterior: cantidadAnterior,
         cantidad_nueva: cantidadNuevaTotal,
@@ -302,7 +336,7 @@ export class InventoryService {
         const { error: insertError } = await supabase
           .from('inventarios')
           .insert({
-            id_sucursal: idSucursal,
+            id_sucursal: efectiveIdSucursal,
             id_producto: idProducto,
             cantidad_actual: cantidadNuevaTotal,
             ultimo_conteo: new Date().toISOString()
@@ -344,7 +378,9 @@ export class InventoryService {
         observaciones = 'Reseteo manual'
       } = resetData;
 
-      if (!idSucursal) {
+      const efectiveIdSucursal = this.getSucursalId(idSucursal);
+      
+      if (!efectiveIdSucursal) {
         throw new Error('ID de sucursal es requerido');
       }
       
@@ -359,12 +395,12 @@ export class InventoryService {
       console.log('Reseteando inventario a 0:', resetData);
 
       // Obtener inventario actual
-      const inventarioActual = await this.getCurrentInventory(idProducto, idSucursal);
+      const inventarioActual = await this.getCurrentInventory(idProducto, efectiveIdSucursal);
       const cantidadAnterior = inventarioActual ? inventarioActual.cantidad_actual : 0;
 
       // Preparar datos del movimiento de reseteo
       const movimiento = {
-        id_sucursal: idSucursal,
+        id_sucursal: efectiveIdSucursal,
         id_producto: idProducto,
         cantidad_anterior: cantidadAnterior,
         cantidad_nueva: 0,
@@ -404,7 +440,7 @@ export class InventoryService {
         const { error: insertError } = await supabase
           .from('inventarios')
           .insert({
-            id_sucursal: idSucursal,
+            id_sucursal: efectiveIdSucursal,
             id_producto: idProducto,
             cantidad_actual: 0,
             ultimo_conteo: new Date().toISOString()
@@ -434,11 +470,13 @@ export class InventoryService {
   /**
    * Obtener historial de movimientos recientes
    * @param {number} limit - Límite de registros
-   * @param {number} idSucursal - ID de la sucursal
+   * @param {number} idSucursal - ID de la sucursal (opcional, usa sucursal efectiva)
    * @returns {Promise<Array>} - Lista de movimientos
    */
   static async getRecentMovements(limit = APP_CONFIG.HISTORY_LIMIT, idSucursal) {
-    if (!idSucursal) {
+    const efectiveIdSucursal = this.getSucursalId(idSucursal);
+    
+    if (!efectiveIdSucursal) {
       throw new Error('ID de sucursal es requerido');
     }
     
@@ -455,7 +493,7 @@ export class InventoryService {
             descripcion
           )
         `)
-        .eq('id_sucursal', idSucursal)
+        .eq('id_sucursal', efectiveIdSucursal)
         .order('fecha_movimiento', { ascending: false })
         .limit(limit);
 
@@ -505,11 +543,13 @@ export class InventoryService {
 
   /**
    * Obtener estadísticas básicas del inventario
-   * @param {number} idSucursal - ID de la sucursal
+   * @param {number} idSucursal - ID de la sucursal (opcional, usa sucursal efectiva)
    * @returns {Promise<Object>} - Estadísticas
    */
   static async getInventoryStats(idSucursal) {
-    if (!idSucursal) {
+    const efectiveIdSucursal = this.getSucursalId(idSucursal);
+    
+    if (!efectiveIdSucursal) {
       throw new Error('ID de sucursal es requerido');
     }
     
@@ -518,7 +558,7 @@ export class InventoryService {
       const { count: totalProductos, error: countError } = await supabase
         .from('inventarios')
         .select('id_producto', { count: 'exact' })
-        .eq('id_sucursal', idSucursal);
+        .eq('id_sucursal', efectiveIdSucursal);
 
       if (countError) {
         throw countError;
@@ -528,7 +568,7 @@ export class InventoryService {
       const { data: sumData, error: sumError } = await supabase
         .from('inventarios')
         .select('cantidad_actual')
-        .eq('id_sucursal', idSucursal);
+        .eq('id_sucursal', efectiveIdSucursal);
 
       if (sumError) {
         throw sumError;
